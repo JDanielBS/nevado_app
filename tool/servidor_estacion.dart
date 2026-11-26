@@ -1,4 +1,4 @@
-// Estación de instalación: reparte la app y el modelo por la red local y emite los pases.
+// Estación de instalación: reparte la app, el modelo y la voz por la red local y emite los pases.
 //
 // Uso, desde la raíz del proyecto:
 //   dart run tool/servidor_estacion.dart
@@ -9,12 +9,14 @@
 //   --minutos 12        vigencia de los pases
 //   --apk RUTA          por defecto build/app/outputs/flutter-apk/app-release.apk
 //   --modelo RUTA       por defecto estacion/<archivo del modelo>
+//   --voz RUTA          por defecto estacion/<paquete de la voz>
 //
 // El pase no se publica en la red: el personal muestra el QR desde este computador.
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:nevado_app/core/ai/model_file.dart';
+import 'package:nevado_app/core/voice/voice_file.dart';
 
 import 'estacion.dart';
 import 'pases.dart';
@@ -42,9 +44,17 @@ Future<void> main(List<String> argumentos) async {
   final minutos = numero(argumentos, '--minutos', minutosPorDefecto);
   final apk = File(opcion(argumentos, '--apk') ?? 'build/app/outputs/flutter-apk/app-release.apk');
   final modelo = File(opcion(argumentos, '--modelo') ?? 'estacion/$nombreModelo');
+  final voz = File(opcion(argumentos, '--voz') ?? 'estacion/$nombreVoz');
 
   if (!apk.existsSync()) salir('No existe el APK en ${apk.path}. Compílalo (ver COMANDOS.md).');
   if (!modelo.existsSync()) salir('No existe el modelo en ${modelo.path}. Descárgalo (ver COMANDOS.md).');
+
+  if (!voz.existsSync()) salir('No existe la voz en ${voz.path}. Descárgala (ver COMANDOS.md).');
+
+  stdout.writeln('Comprobando la voz...');
+  if ((await sha256.bind(voz.openRead()).first).toString() != sha256Voz) {
+    salir('El archivo de la voz está incompleto o no es el esperado.');
+  }
 
   stdout.writeln('Comprobando el modelo...');
   final huella = (await sha256.bind(modelo.openRead()).first).toString();
@@ -52,7 +62,7 @@ Future<void> main(List<String> argumentos) async {
 
   final claves = await cargarClaves();
   final base = Uri.parse('http://${opcion(argumentos, '--ip') ?? await detectarIp()}:$puerto/');
-  final descargas = {'/nevados.apk': apk, '/$nombreModelo': modelo};
+  final descargas = descargasDeEstacion(apk: apk, modelo: modelo, voz: voz);
   await iniciarServidor(descargas, puerto: puerto, registro: stdout.writeln);
 
   const rutaInstalar = 'build/pases/instalar.svg';

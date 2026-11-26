@@ -1,8 +1,15 @@
-// Servidor HTTP de la estación: entrega la página de instalación, el APK y el modelo.
+// Servidor HTTP de la estación: entrega la página de instalación, el APK, el modelo y la voz.
 import 'dart:io';
+
+import 'package:nevado_app/core/ai/model_file.dart';
+import 'package:nevado_app/core/voice/voice_file.dart';
 
 /// Archivos que se pueden descargar, por su ruta. No se sirve nada más.
 typedef Descargas = Map<String, File>;
+
+/// La app busca la voz junto al modelo, en la misma estación.
+Descargas descargasDeEstacion({required File apk, required File modelo, required File voz}) =>
+    {'/nevados.apk': apk, '/$nombreModelo': modelo, '/$nombreVoz': voz};
 
 String paginaInicio() =>
     '<!doctype html><html lang="es"><head><meta charset="utf-8">'
@@ -15,7 +22,7 @@ String paginaInicio() =>
     '<ol><li>Abre el archivo descargado.</li>'
     '<li>Si el teléfono lo pide, permite instalar aplicaciones de este origen.</li>'
     '<li>Abre Nevados y toca <b>Escanear pase</b> con el QR que te muestra el personal.</li>'
-    '<li>Espera a que termine la descarga del modelo, sin salir de la red de la estación.</li></ol>'
+    '<li>Espera a que termine la descarga del modelo y de la voz, sin salir de la red de la estación.</li></ol>'
     '</body></html>';
 
 Future<HttpServer> iniciarServidor(

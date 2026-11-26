@@ -7,6 +7,7 @@ import 'package:flutter_edge_ai_litertlm/flutter_edge_ai_litertlm.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nevado_app/core/access/pass.dart';
 import 'package:nevado_app/core/ai/model_file.dart';
+import 'package:nevado_app/core/voice/voice_file.dart';
 import 'package:nevado_app/features/chat/chat_controller.dart';
 
 import '../tool/estacion.dart';
@@ -20,6 +21,13 @@ void main() {
     expect(nombreModelo, file.installFilename);
     expect(bytesModelo, file.sizeBytes);
     expect(sha256Modelo, file.sha256);
+  });
+
+  test('la voz se pide en la misma estación que el modelo', () {
+    expect(origen.resolve(nombreVoz).toString(), 'http://192.168.1.20:8000/$nombreVoz');
+    expect(sha256Voz, hasLength(64));
+    expect(descargasDeEstacion(apk: File('a'), modelo: File('m'), voz: File('v')).keys,
+        ['/nevados.apk', '/$nombreModelo', '/$nombreVoz']);
   });
 
   test('el pase lleva firmada la dirección del modelo', () async {
