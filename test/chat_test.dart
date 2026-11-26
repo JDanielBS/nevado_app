@@ -21,6 +21,8 @@ class FakeEngine implements LlmEngine {
   bool failGenerate = false;
   bool corrupt = false;
   int installs = 0;
+  int loads = 0;
+  int unloads = 0;
   StreamController<int> progress = StreamController<int>();
 
   @override
@@ -29,8 +31,11 @@ class FakeEngine implements LlmEngine {
   @override
   Future<bool> isInstalled() async => installed;
 
+  Uri? origen;
+
   @override
-  Stream<int> install() {
+  Stream<int> install({Uri? origen}) {
+    this.origen = origen;
     installs++;
     if (failInstall) return Stream.error(Exception('sin red'));
     return progress.stream;
@@ -38,7 +43,13 @@ class FakeEngine implements LlmEngine {
 
   @override
   Future<void> load() async {
+    loads++;
     if (corrupt) throw const CorruptModelException();
+  }
+
+  @override
+  Future<void> unload() async {
+    unloads++;
   }
 
   @override
@@ -99,10 +110,10 @@ void main() {
     expect(find.text('Hola mundo'), findsOneWidget);
   });
 
-  testWidgets('sin token no ofrece descargar', (tester) async {
+  testWidgets('sin origen de descarga pide escanear el pase', (tester) async {
     await open(tester, FakeEngine(canDownload: false));
     expect(find.text('Descargar'), findsNothing);
-    expect(find.textContaining('.env'), findsOneWidget);
+    expect(find.textContaining('escanea el pase'), findsOneWidget);
   });
 
   testWidgets('fallo de descarga permite reintentar', (tester) async {
@@ -191,5 +202,41 @@ void main() {
     await controller.start();
     expect(engine.installs, 1);
     expect(controller.phase, ChatPhase.downloading);
+  });
+
+  group('liberar memoria del modelo', () {
+    test('release lo descarga de memoria y start lo vuelve a cargar', () async {
+      final engine = FakeEngine(installed: true);
+      final controller = ChatController(engine);
+      await controller.start();
+      expect(controller.phase, ChatPhase.ready);
+      expect(engine.loads, 1);
+
+      await controller.release();
+      expect(engine.unloads, 1);
+      expect(controller.phase, ChatPhase.checking);
+
+      await controller.start();
+      expect(engine.loads, 2);
+      expect(controller.phase, ChatPhase.ready);
+    });
+
+    test('release no descarga nada si el modelo no está cargado', () async {
+      final engine = FakeEngine(installed: true);
+      final controller = ChatController(engine);
+      await controller.release();
+      expect(engine.unloads, 0);
+      expect(engine.loads, 0);
+    });
+
+    test('tras release no se usa el modelo sin volver a cargarlo', () async {
+      final engine = FakeEngine(installed: true);
+      final controller = ChatController(engine);
+      await controller.start();
+      await controller.release();
+      await controller.ask('¿cómo se hace una arepa?');
+      expect(controller.answer, isEmpty);
+      expect(engine.loads, 1);
+    });
   });
 }

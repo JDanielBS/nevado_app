@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import '../../app/app_scope.dart';
 import '../../core/content/card_repository.dart';
 import '../../core/ui/widgets.dart';
+import '../access/access_gate.dart';
 import '../cards/cards_screen.dart';
 import '../chat/chat_screen.dart';
+import '../chat/model_provisioning.dart';
 import '../emergency/emergency_screen.dart';
 import '../location/location_screen.dart';
 import '../map/map_screen.dart';
@@ -15,10 +17,10 @@ class HomeScreen extends StatelessWidget {
 
   static const _entries = <(String, IconData, Widget)>[
     ('Emergencias', Icons.emergency, EmergencyScreen()),
-    ('Asistente', Icons.chat, ChatScreen()),
+    ('Asistente', Icons.chat, AccessGate(title: 'Asistente', child: ChatScreen())),
     ('Mi ubicación', Icons.my_location, LocationScreen()),
-    ('Mapa', Icons.map, MapScreen()),
-    ('Fichas', Icons.menu_book, CardsScreen()),
+    ('Mapa', Icons.map, AccessGate(title: 'Mapa', child: MapScreen())),
+    ('Fichas', Icons.menu_book, AccessGate(title: 'Fichas', child: CardsScreen())),
   ];
 
   @override
@@ -45,6 +47,8 @@ class HomeScreen extends StatelessWidget {
                   'No lo uses para tomar decisiones de seguridad.',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
+              const AccessCard(),
+              const ModelStatus(),
               for (final (label, icon, screen) in _entries)
                 FilledButton.icon(
                   icon: Icon(icon, size: 32),
