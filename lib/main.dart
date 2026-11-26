@@ -16,7 +16,7 @@ Future<void> main() async {
   final cards = await cargarFichas();
   final access = AccessController(store: PreferencesAccessStore(), clavePublica: clavePublicaPases);
   vincularModeloConPase(access, chatDeLaApp);
-  // No se espera: la app abre de inmediato y Emergencias queda disponible mientras se comprueba.
+  // No se espera: la app abre de inmediato y la sección Seguridad queda disponible mientras se comprueba.
   unawaited(access.iniciar());
   runApp(NevadoApp(cards: cards, settings: Ajustes()..iniciar(), access: access, model: chatDeLaApp));
 }

@@ -157,37 +157,35 @@ void main() {
     expect(access.activo, isTrue);
   });
 
-  testWidgets('sin pase solo abren emergencias y ubicación; al vencer se cierra la sección', (tester) async {
+  testWidgets('sin pase solo abren seguridad y acerca; al vencer se cierra la sección', (tester) async {
     final access = crear();
     await tester.runAsync(access.comprobar);
     await tester.pumpWidget(NevadoApp(access: access));
+    await tester.pumpAndSettle();
 
     Future<void> abrir(String label) async {
-      await tester.ensureVisible(find.text(label));
       await tester.tap(find.text(label));
       await tester.pumpAndSettle();
     }
 
-    for (final label in ['Asistente', 'Mapa', 'Fichas']) {
+    for (final label in ['Ruta', 'Guía IA']) {
       await abrir(label);
       expect(find.text('Escanear pase'), findsOneWidget, reason: label);
-      await tester.pageBack();
-      await tester.pumpAndSettle();
     }
-    await abrir('Mi ubicación');
-    expect(find.text('Obtener mi ubicación'), findsOneWidget);
-    await tester.pageBack();
-    await tester.pumpAndSettle();
+    await abrir('Seguridad');
+    expect(find.text('Seguridad y normas'), findsOneWidget);
+    await abrir('i');
+    expect(find.text('Acerca del parque'), findsOneWidget);
 
     await tester.runAsync(() async => access.activar(await pase()));
     await tester.pumpAndSettle();
-    await abrir('Fichas');
-    expect(find.text('Buscar en las fichas'), findsOneWidget);
+    await abrir('Ruta');
+    expect(find.text('Escanear otro pase'), findsOneWidget);
 
     tiempo.avanzar(const Duration(minutes: 6));
     await tester.runAsync(access.comprobar);
     await tester.pumpAndSettle();
-    expect(find.text('Buscar en las fichas'), findsNothing);
+    expect(find.text('Escanear otro pase'), findsNothing);
     expect(find.textContaining('El pase venció'), findsOneWidget);
   });
 }

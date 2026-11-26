@@ -65,7 +65,7 @@ Mientras corre: `r` recarga, `R` reinicia y `q` cierra.
 
 ## 4. Generar el pase del recorrido
 
-Sin un pase vigente solo abren Emergencias y Mi ubicación.
+Sin un pase vigente solo abren las secciones Seguridad y Acerca.
 
 ```sh
 dart run tool/generar_pase.dart                 # 12 minutos (pruebas)

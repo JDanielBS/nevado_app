@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../app/app_page.dart';
 import '../../core/access/access_controller.dart';
 import '../../core/ui/palette.dart';
 import '../../core/ui/widgets.dart';
@@ -25,19 +24,19 @@ String describirRestante(Duration restante) {
 
 /// Muestra [child] solo con un pase vigente. Al vencer, reemplaza la pantalla abierta.
 class AccessGate extends StatelessWidget {
-  const AccessGate({super.key, required this.title, required this.child});
+  const AccessGate({super.key, this.title, required this.child});
 
-  final String title;
+  /// Título de la barra cuando [child] es una pantalla completa. Las secciones no lo usan.
+  final String? title;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final access = AccessScope.maybeOf(context);
     if (access == null || access.activo) return child;
-    return AppPage(
-      title: title,
-      body: ListView(padding: const EdgeInsets.all(Espacio.m), children: const [AccessCard()]),
-    );
+    final aviso = ListView(padding: const EdgeInsets.all(Espacio.m), children: const [AccessCard()]);
+    final titulo = title;
+    return titulo == null ? aviso : Scaffold(appBar: AppBar(title: Text(titulo)), body: SafeArea(child: aviso));
   }
 }
 
@@ -56,7 +55,7 @@ class AccessCard extends StatelessWidget {
           const TituloCaja('Pase del recorrido'),
           Linea(mensajeAcceso(access.estado), tamano: 16),
           if (access.activo) Linea('Tiempo restante: ${describirRestante(access.restante)}', negrita: true),
-          if (!access.activo) const Linea('Emergencias y Mi ubicación funcionan sin pase.'),
+          if (!access.activo) const Linea('La sección Seguridad funciona sin pase.'),
           const SizedBox(height: Espacio.s),
           FilledButton.icon(
             icon: const Icon(Icons.qr_code_scanner),

@@ -105,7 +105,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), '¿Hola?');
-    await tester.tap(find.text('Preguntar'));
+    await tester.tap(find.text('Enviar'));
     await tester.pumpAndSettle();
     expect(find.text('Hola mundo'), findsOneWidget);
   });
@@ -134,10 +134,10 @@ void main() {
     await open(tester, engine);
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'x');
-    await tester.tap(find.text('Preguntar'));
+    await tester.tap(find.text('Enviar'));
     await tester.pumpAndSettle();
     expect(find.textContaining('No se pudo responder'), findsOneWidget);
-    expect(find.text('Preguntar'), findsOneWidget);
+    expect(find.text('Enviar'), findsOneWidget);
   });
 
   testWidgets('modelo dañado pide descargarlo de nuevo', (tester) async {

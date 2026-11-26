@@ -22,7 +22,7 @@ En VS Code, si la extensión Java muestra `Unsupported class file major version`
 ## Pase de recorrido
 
 La app solo funciona con un pase vigente, para que no se use fuera del recorrido. Sin pase quedan disponibles
-**Emergencias** y **Mi ubicación**; el asistente, el mapa y las fichas se bloquean. Todo se comprueba sin internet.
+**Seguridad** y **Acerca**; la ruta, las estaciones, el mapa y la guía IA se bloquean. Todo se comprueba sin internet.
 
 Generar un pase (en un computador del personal, desde la raíz del proyecto):
 
@@ -70,12 +70,15 @@ local y emite los pases (`tool/servidor_estacion.dart`). Los pasos están en [`C
 
 | Función | Dónde |
 |---|---|
+| Estructura de pantallas (diseño "Kumanday") | `lib/app/shell.dart`: encabezado y navegación Ruta · Guía IA · Seguridad |
+| Ruta, estaciones y fichas por estación | `lib/features/route/`, `lib/features/station/`, `lib/core/route/estaciones.dart` |
+| Fotos de cada estación (paisaje, flora, fauna) | `assets/imagenes/` (ver `LEEME.md`); el paisaje también es la marca de agua |
+| Paleta por estación y componentes | `lib/core/ui/palette.dart`, `lib/core/ui/widgets.dart`, fuentes en `fonts/` |
+| Seguridad, emergencias y fichas | `lib/features/safety/`, `assets/content/` |
 | Pase de recorrido | `lib/core/access/`, `lib/features/access/`, `tool/generar_pase.dart` |
-| Emergencias y fichas | `lib/features/emergency/`, `lib/features/cards/`, `assets/content/` |
 | Reglas de seguridad y búsqueda local | `lib/core/safety/`, `lib/core/search/`, `lib/core/assistant/` |
-| Ubicación GPS bajo demanda | `lib/features/location/`, `lib/core/location/` |
 | Mapa | `lib/features/map/`, `assets/map/`, `maps/` |
-| Modo ahorro y tamaño de texto | `lib/core/settings/` |
+| Modo ahorro y tamaño de texto (en "Acerca") | `lib/core/settings/`, `lib/features/about/` |
 | Comparación de modelos | `eval/` |
 
 El asistente decide en este orden: reglas de emergencia y de límites, fichas y, solo si no hay nada, el modelo

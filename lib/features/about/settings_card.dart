@@ -17,7 +17,8 @@ class SettingsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const TituloCaja('Ajustes'),
+          Text('Ajustes', style: estiloTitulo(21)),
+          const SizedBox(height: 6),
           const Linea('Tamaño del texto', negrita: true),
           Wrap(
             spacing: Espacio.s,
@@ -27,6 +28,8 @@ class SettingsCard extends StatelessWidget {
                 ChoiceChip(
                   label: Text(scale.value),
                   selected: settings.escala == scale.key,
+                  selectedColor: TemaScope.of(context).tinte,
+                  side: const BorderSide(color: Colores.bordeFuerte, width: 2),
                   onSelected: (_) => settings.escala = scale.key,
                 ),
             ],
@@ -34,8 +37,10 @@ class SettingsCard extends StatelessWidget {
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Modo ahorro de batería'),
-            subtitle: Text('Batería: ${porcentaje(settings.nivelBateria)}. Se activa solo con 20 % o menos; puedes desactivarlo.'),
+            subtitle: Text(
+                'Batería: ${porcentaje(settings.nivelBateria)}. Se activa solo con 20 % o menos; puedes desactivarlo.'),
             value: settings.ahorroActivo,
+            activeTrackColor: TemaScope.of(context).acento,
             onChanged: settings.elegirAhorro,
           ),
           if (settings.ahorroActivo) ...const [
