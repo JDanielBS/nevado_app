@@ -16,3 +16,19 @@ fvm flutter run
 Si `fvm` no se reconoce, agrega `%LOCALAPPDATA%\Pub\Cache\bin` al PATH.
 
 En VS Code, si la extensión Java muestra `Unsupported class file major version`, define en tu configuración de usuario `java.import.gradle.java.home` con la ruta de un JDK 21.
+
+## Asistente con IA (experimental)
+
+Usa Gemma 3 1B (584 MB), que se descarga desde la app. Solo en Android arm64 con 4 GB de RAM o más; el emulador no lo ejecuta.
+
+1. Acepta la licencia en https://huggingface.co/litert-community/Gemma3-1B-IT y crea un token de lectura.
+2. Crea `.env` en la raíz (git lo ignora) con `HUGGINGFACE_TOKEN=hf_...`.
+3. Ejecuta con el token:
+
+```powershell
+fvm flutter run --dart-define-from-file=.env
+```
+
+En VS Code, agrega a `.vscode/settings.json`: `"dart.flutterRunAdditionalArgs": ["--dart-define-from-file=.env"]`.
+
+El token queda dentro del APK. No compartas ni publiques un APK compilado así.
