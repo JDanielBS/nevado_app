@@ -88,6 +88,14 @@ class EdgeLlmEngine implements LlmEngine {
   }
 
   @override
+  Future<void> unload() async {
+    final model = _model;
+    if (model == null) return;
+    _model = null;
+    await model.close();
+  }
+
+  @override
   Stream<String> generate(String prompt) async* {
     final chat = await _model!.openChat(topK: 1, maxOutputTokens: 150);
     try {

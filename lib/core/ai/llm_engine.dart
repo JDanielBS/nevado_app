@@ -21,6 +21,11 @@ abstract interface class LlmEngine {
   /// Antes verifica el archivo y lanza [CorruptModelException] si está dañado.
   Future<void> load();
 
+  /// Libera la memoria del modelo. Queda instalado en disco: [load] lo vuelve a cargar.
+  ///
+  /// No hace nada si no estaba cargado.
+  Future<void> unload();
+
   /// Emite la respuesta por partes a medida que se genera.
   Stream<String> generate(String prompt);
 }

@@ -52,6 +52,17 @@ class ChatController extends ChangeNotifier {
     if (phase == ChatPhase.failed) await _prepare();
   }
 
+  /// Libera la memoria del modelo al salir de la pantalla y deja el asistente
+  /// listo para cargarlo de nuevo con [start].
+  ///
+  /// El modelo queda instalado en disco: aquí solo se recupera su memoria.
+  Future<void> release() async {
+    if (phase != ChatPhase.ready) return;
+    _started = false;
+    phase = ChatPhase.checking;
+    await engine.unload();
+  }
+
   Future<void> _prepare() async {
     _set(ChatPhase.checking);
     try {

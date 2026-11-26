@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../app/app_page.dart';
@@ -44,6 +46,8 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     _input.dispose();
+    // Al salir se recupera la memoria del modelo; vuelve a cargarse al entrar.
+    unawaited(_chat.release());
     super.dispose();
   }
 
