@@ -7,8 +7,11 @@ import 'package:nevado_app/core/search/normalize.dart';
 import 'package:nevado_app/core/content/card_repository.dart';
 import 'package:nevado_app/core/content/card.dart';
 
+import 'seccion_test.dart' show seccionesDelProyecto;
+
 void main() {
-  final fichas = fichasDesdeTexto(File(rutaFichas).readAsStringSync());
+  final emergencia = fichasDesdeTexto(File(rutaEmergencia).readAsStringSync());
+  final indice = IndiceGuia.de(seccionesDelProyecto());
 
   group('normalizar y tokenizar', () {
     test('quita tildes y mayúsculas', () {
@@ -19,66 +22,38 @@ void main() {
     });
   });
 
-  group('buscar', () {
-    test('encuentra la ficha por palabra del título aunque tenga tilde distinta', () {
-      expect(buscar('frailejon', fichas).first.ficha.id, 'flora-frailejon');
+  group('buscar en la guía', () {
+    test('encuentra por palabra del título aunque tenga tilde distinta', () {
+      expect(indice.buscar('frailejon').first.fragmento.ruta, contains('Frailejón'));
     });
     test('no devuelve nada para una consulta sin relación', () {
-      expect(buscar('receta de arepas', fichas), isEmpty);
+      expect(indice.buscar('receta de arepas'), isEmpty);
     });
     test('no devuelve nada para consulta vacía', () {
-      expect(buscar('   ', fichas), isEmpty);
+      expect(indice.buscar('   '), isEmpty);
+    });
+    test('devuelve como máximo los fragmentos que caben en el modelo', () {
+      expect(indice.buscar('volcán glaciar roca páramo agua').length, lessThanOrEqualTo(fragmentosPorPregunta));
     });
   });
 
-  group('responder: preguntas con respuesta', () {
-    const casos = {
-      '¿Qué es un frailejón?': 'flora-frailejon',
-      'me duele la cabeza y tengo mareo por la altura': 'seguridad-mal-de-altura',
-      'qué hago con la basura': 'norma-basura',
-      'hay cóndores': 'fauna-condor',
-      'el volcán Ruiz está activo': 'lugar-nevado-ruiz',
-      'qué hago si hay tormenta con rayos': 'seguridad-tormenta',
-    };
-    casos.forEach((pregunta, id) {
-      test('"$pregunta" usa la ficha $id', () {
-        final r = responderPregunta(pregunta, fichas);
-        expect(r.tipo, TipoRespuesta.respuesta);
-        expect(r.fuentes.first.id, id);
-      });
+  group('capa fija', () {
+    test('medicamentos se responde con un límite, sin fuentes', () {
+      for (final q in ['¿qué pastilla tomo para el soroche?', '¿cuánta acetazolamida tomo?', 'dosis de ibuprofeno']) {
+        final r = respuestaFija(q, emergencia);
+        expect(r?.tipo, TipoRespuesta.limite, reason: q);
+        expect(r?.fuentes, isEmpty);
+      }
     });
-  });
-
-  group('responder: no inventa', () {
-    test('dice que no tiene información fuera de tema', () {
-      final r = responderPregunta('¿cómo se hace una arepa?', fichas);
+    test('las demás preguntas no son fijas: van a la guía y al modelo', () {
+      for (final q in ['¿qué clima hace hoy?', '¿es seguro ir al nevado?', '¿cuánto se demora la caminata?']) {
+        expect(respuestaFija(q, emergencia), isNull, reason: q);
+      }
+    });
+    test('sin fragmentos se dice que no hay información', () {
+      final r = respuestaConFragmentos(const []);
       expect(r.tipo, TipoRespuesta.sinInformacion);
       expect(r.texto, mensajeSinInformacion);
-      expect(r.fuentes, isEmpty);
-    });
-  });
-
-  group('responder: límites de seguridad (preguntas trampa)', () {
-    const trampas = [
-      '¿qué clima hace hoy?',
-      '¿va a llover ahora?',
-      '¿cuál es el pronóstico de mañana?',
-      '¿es seguro ir al nevado?',
-      '¿puedo ir hoy?',
-      '¿puedo subir hoy?',
-      '¿qué pastilla tomo para el soroche?',
-      '¿cuánto se demora la caminata?',
-      '¿cuántas horas hay hasta la laguna?',
-    ];
-    for (final pregunta in trampas) {
-      test('"$pregunta" se responde con un límite y sin fuentes', () {
-        final r = responderPregunta(pregunta, fichas);
-        expect(r.tipo, TipoRespuesta.limite);
-        expect(r.fuentes, isEmpty);
-      });
-    }
-    test('el clima en general sí usa la ficha', () {
-      expect(responderPregunta('qué ropa llevo para el frío', fichas).fuentes.first.id, 'clima-general');
     });
   });
 
@@ -104,9 +79,9 @@ void main() {
     ];
     for (final pregunta in urgencias) {
       test('"$pregunta" entrega la tarjeta de emergencia', () {
-        final r = responderPregunta(pregunta, fichas);
-        expect(r.tipo, TipoRespuesta.emergencia);
-        expect(r.fuentes.first.categoria, Categoria.emergencia);
+        final r = respuestaFija(pregunta, emergencia);
+        expect(r?.tipo, TipoRespuesta.emergencia);
+        expect(r?.tarjetas.first.categoria, Categoria.emergencia);
       });
     }
   });
@@ -122,21 +97,21 @@ void main() {
     ];
     for (final pregunta in normales) {
       test('"$pregunta" no se trata como emergencia', () {
-        expect(responderPregunta(pregunta, fichas).tipo, isNot(TipoRespuesta.emergencia));
+        expect(respuestaFija(pregunta, emergencia)?.tipo, isNot(TipoRespuesta.emergencia));
       });
     }
   });
 
-  group('contenido', () {
-    test('todas las fichas tienen fuente y los ids son únicos', () {
-      final ids = fichas.map((f) => f.id).toList();
+  group('tarjetas de emergencia', () {
+    test('tienen fuente y los ids son únicos', () {
+      final ids = emergencia.map((f) => f.id).toList();
       expect(ids.toSet().length, ids.length);
-      for (final f in fichas) {
+      for (final f in emergencia) {
         expect(f.fuente, isNotEmpty);
       }
     });
-    test('una ficha verificada exige fecha de verificación', () {
-      for (final f in fichas.where((x) => x.verificada)) {
+    test('una tarjeta verificada exige fecha de verificación', () {
+      for (final f in emergencia.where((x) => x.verificada)) {
         expect(f.fechaVerificacion, isNotNull);
       }
     });

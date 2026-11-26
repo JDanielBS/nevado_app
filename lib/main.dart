@@ -6,16 +6,22 @@ import 'app/app.dart';
 import 'core/access/access_controller.dart';
 import 'core/access/access_store.dart';
 import 'core/access/public_key.dart';
+import 'core/config/compilacion.dart';
 import 'core/content/card_repository.dart';
 import 'core/content/content_controller.dart';
 import 'core/content/package_io.dart';
+import 'core/content/publicacion_r2.dart' show rutaPaqueteR2;
 import 'core/settings/settings.dart';
 import 'features/chat/chat_screen.dart';
 import 'features/chat/model_provisioning.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final content = ContentController(emergencia: await cargarFichasDeEmergencia(), store: FilePackageStore());
+  final content = ContentController(
+    emergencia: await cargarFichasDeEmergencia(),
+    store: FilePackageStore(),
+    internet: direccionContenido?.resolve(rutaPaqueteR2),
+  );
   final access = AccessController(store: SecureAccessStore(), clavePublica: clavePublicaPases);
   content.vincular(access);
   vincularModeloConPase(access, chatDeLaApp);
@@ -25,5 +31,7 @@ Future<void> main() async {
   });
   // No se espera: la app abre de inmediato y la sección Seguridad queda disponible mientras se comprueba.
   unawaited(access.iniciar());
+  // Si hay internet, trae el contenido publicado (cifrado) para usarlo en el parque sin señal.
+  unawaited(content.predescargar());
   runApp(NevadoApp(settings: Ajustes()..iniciar(), access: access, content: content, model: chatDeLaApp));
 }

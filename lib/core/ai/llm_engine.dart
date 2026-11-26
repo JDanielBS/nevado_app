@@ -13,6 +13,9 @@ abstract interface class LlmEngine {
 
   Future<bool> isInstalled();
 
+  /// Ruta del archivo del modelo si está instalado y verificado, para que el guía lo comparta.
+  Future<String?> rutaInstalada();
+
   /// Descarga el modelo desde [origen], o desde su fuente pública si se omite.
   /// Emite el porcentaje de avance.
   Stream<int> install({Uri? origen});

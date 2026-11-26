@@ -85,7 +85,7 @@ class TurnoView extends StatelessWidget {
         if (turno.respuesta case final r?)
           ReplyView(reply: r)
         else if (turno.generado.isNotEmpty)
-          Burbuja(texto: turno.generado, fuente: 'Respuesta del modelo, sin fuente verificada')
+          Burbuja(texto: turno.generado, fuente: describirFuentes(turno.fuentes, turno.verificada, modelo: true))
         else if (respondiendo)
           const Burbuja(texto: '…')
         else if (turno.fallo)
@@ -95,7 +95,13 @@ class TurnoView extends StatelessWidget {
   }
 }
 
-/// Respuesta de las reglas de seguridad o de las fichas, con sus fuentes.
+/// Línea de fuentes bajo una respuesta.
+String describirFuentes(List<String> fuentes, bool verificada, {bool modelo = false}) {
+  if (fuentes.isEmpty) return modelo ? 'Respuesta del modelo, sin fuente' : 'Sin respuesta en la guía del parque';
+  return '${modelo ? 'IA, según' : 'Fuente:'} ${fuentes.join(' · ')}${verificada ? '' : ' (sin verificar)'}';
+}
+
+/// Respuesta fija o sin modelo, con sus fuentes.
 class ReplyView extends StatelessWidget {
   const ReplyView({super.key, required this.reply});
 
@@ -103,10 +109,11 @@ class ReplyView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fuente = reply.fuentes.isEmpty
-        ? (reply.tipo == TipoRespuesta.sinInformacion ? 'Sin respuesta en las fichas del parque' : null)
-        : 'Fuente: ${reply.fuentes.map((f) => f.titulo).join(' · ')}'
-            '${reply.fuentes.every((f) => f.verificada) ? '' : ' (sin verificar)'}';
+    final fuente = switch (reply.tipo) {
+      TipoRespuesta.limite => null,
+      TipoRespuesta.emergencia when reply.fuentes.isEmpty => null,
+      _ => describirFuentes(reply.fuentes, reply.verificada),
+    };
     return switch (reply.tipo) {
       TipoRespuesta.emergencia => Burbuja(
           texto: reply.texto,
@@ -118,7 +125,6 @@ class ReplyView extends StatelessWidget {
       TipoRespuesta.limite => Burbuja(
           texto: reply.texto,
           encabezado: 'Límite de esta guía',
-          fuente: fuente,
           fondo: Colores.avisoFondo,
           borde: Colores.aviso,
         ),

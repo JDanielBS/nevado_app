@@ -6,16 +6,16 @@
 //   --ip 192.168.1.20    dirección de este computador (por defecto se detecta)
 //   --puerto 8000
 //   --minutos 10         vigencia de los pases
-//   --apk RUTA           por defecto build/app/outputs/flutter-apk/app-release.apk
+//   --apk RUTA           por defecto build/app/outputs/flutter-apk/app-visitante-release.apk
 //   --modelo RUTA        por defecto estacion/<archivo del modelo>
-//   --contenido RUTA     fichas a cifrar; por defecto contenido/fichas.demo.json
+//   --contenido CARPETA  secciones .md a cifrar; por defecto contenido/secciones
 //
 // El pase no se publica en la red: el personal muestra el QR desde este computador.
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:nevado_app/core/ai/model_file.dart';
-import 'package:nevado_app/core/content/card.dart' show rutaFichas;
+import 'package:nevado_app/core/content/card.dart' show rutaSecciones;
 
 import 'estacion.dart';
 import 'pases.dart';
@@ -57,11 +57,11 @@ Future<void> abrirPuenteUsb(int puerto) async {
 Future<void> main(List<String> argumentos) async {
   final puerto = numero(argumentos, '--puerto', 8000);
   final minutos = numero(argumentos, '--minutos', minutosPorDefecto);
-  final apk = File(opcion(argumentos, '--apk') ?? 'build/app/outputs/flutter-apk/app-release.apk');
+  final apk = File(opcion(argumentos, '--apk') ?? 'build/app/outputs/flutter-apk/app-visitante-release.apk');
   final modelo = File(opcion(argumentos, '--modelo') ?? 'estacion/$nombreModelo');
 
-  final fichas = File(opcion(argumentos, '--contenido') ?? rutaFichas);
-  if (!fichas.existsSync()) salir('No existen las fichas en ${fichas.path}.');
+  final fichas = Directory(opcion(argumentos, '--contenido') ?? rutaSecciones);
+  if (!fichas.existsSync()) salir('No existe la carpeta de secciones ${fichas.path}.');
   final paquete = File('build/estacion/contenido.nev');
 
   if (!modelo.existsSync()) {
@@ -102,7 +102,7 @@ Future<void> main(List<String> argumentos) async {
     stdout.writeln('Sin APK en ${apk.path}: no se ofrece la instalación, solo el modelo.');
   }
   stdout.writeln('2) QR del pase:');
-  // Las fichas se cifran de nuevo con cada pase: así los cambios se publican sin reiniciar.
+  // Las secciones se cifran de nuevo con cada pase: así los cambios se publican sin reiniciar.
   Future<void> emitir() async {
     final llave = llaveDeLaJornada();
     try {

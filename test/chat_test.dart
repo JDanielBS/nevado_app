@@ -6,9 +6,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nevado_app/core/ai/device_support.dart';
 import 'package:nevado_app/core/ai/llm_engine.dart';
 import 'package:nevado_app/core/content/card.dart';
+import 'package:nevado_app/app/app_scope.dart';
 import 'package:nevado_app/core/content/card_repository.dart';
+import 'package:nevado_app/core/search/search.dart';
+import 'package:nevado_app/core/settings/settings.dart';
 import 'package:nevado_app/features/chat/chat_controller.dart';
 import 'package:nevado_app/features/chat/chat_screen.dart';
+
+import 'seccion_test.dart' show seccionesDelProyecto;
+
+final indiceDelProyecto = IndiceGuia.de(seccionesDelProyecto());
 
 class FakeEngine implements LlmEngine {
   FakeEngine({this.reason, this.installed = false, this.canDownload = true});
@@ -18,6 +25,11 @@ class FakeEngine implements LlmEngine {
   @override
   final bool canDownload;
   bool failInstall = false;
+
+  /// Falla solo la descarga desde internet (sin origen).
+  bool failInternet = false;
+  String? lastPrompt;
+  final origenes = <Uri?>[];
   bool failGenerate = false;
   bool corrupt = false;
   int installs = 0;
@@ -31,13 +43,17 @@ class FakeEngine implements LlmEngine {
   @override
   Future<bool> isInstalled() async => installed;
 
+  @override
+  Future<String?> rutaInstalada() async => installed ? '/modelo' : null;
+
   Uri? origen;
 
   @override
   Stream<int> install({Uri? origen}) {
     this.origen = origen;
+    origenes.add(origen);
     installs++;
-    if (failInstall) return Stream.error(Exception('sin red'));
+    if (failInstall || (failInternet && origen == null)) return Stream.error(Exception('sin red'));
     return progress.stream;
   }
 
@@ -53,14 +69,23 @@ class FakeEngine implements LlmEngine {
   }
 
   @override
-  Stream<String> generate(String prompt) => failGenerate
-      ? Stream.error(Exception('motor'))
-      : Stream.fromIterable(['Hola ', 'mundo']);
+  Stream<String> generate(String prompt) {
+    lastPrompt = prompt;
+    return failGenerate ? Stream.error(Exception('motor')) : Stream.fromIterable(['Hola ', 'mundo']);
+  }
 }
 
 Future<ChatController> open(WidgetTester tester, FakeEngine engine) async {
   final controller = ChatController(engine);
-  await tester.pumpWidget(MaterialApp(home: ChatScreen(controller: controller)));
+  await tester.pumpWidget(
+    MaterialApp(
+      home: AppScope(
+        indice: indiceDelProyecto,
+        settings: Ajustes(),
+        child: ChatScreen(controller: controller),
+      ),
+    ),
+  );
   await tester.pump();
   await tester.pump();
   expect(find.textContaining('Experimental'), findsOneWidget);
@@ -104,10 +129,24 @@ void main() {
     await engine.progress.close();
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), '¿Hola?');
+    await tester.enterText(find.byType(TextField), '¿Qué es el frailejón?');
     await tester.tap(find.text('Enviar'));
     await tester.pumpAndSettle();
     expect(find.text('Hola mundo'), findsOneWidget);
+    expect(find.textContaining('IA, según Guion'), findsOneWidget);
+  });
+
+  test('si internet falla, descarga el modelo desde el teléfono del guía', () async {
+    final engine = FakeEngine()..failInternet = true;
+    final controller = ChatController(engine)..origen = Uri.parse('http://192.168.43.1:8000/modelo');
+    await controller.start();
+    final descarga = controller.download();
+    await pumpEventQueue();
+    await engine.progress.close();
+    await descarga;
+    expect(engine.origenes, [null, controller.origen]);
+    expect(controller.phase, ChatPhase.ready);
+    expect(controller.fuenteDescarga, 'guía');
   });
 
   testWidgets('sin origen de descarga pide escanear el pase', (tester) async {
@@ -133,7 +172,7 @@ void main() {
     final engine = FakeEngine(installed: true)..failGenerate = true;
     await open(tester, engine);
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), 'x');
+    await tester.enterText(find.byType(TextField), '¿Qué es el frailejón?');
     await tester.tap(find.text('Enviar'));
     await tester.pumpAndSettle();
     expect(find.textContaining('No se pudo responder'), findsOneWidget);
@@ -148,47 +187,68 @@ void main() {
     expect(find.byType(TextField), findsOneWidget);
   });
 
-  group('reglas antes del modelo', () {
-    final cards = fichasDesdeTexto(File(rutaFichas).readAsStringSync());
+  group('reglas fijas y RAG', () {
+    final emergencia = fichasDesdeTexto(File(rutaEmergencia).readAsStringSync());
 
-    Future<ChatController> ready() async {
-      final controller = ChatController(FakeEngine(installed: true));
+    Future<(ChatController, FakeEngine)> ready() async {
+      final engine = FakeEngine(installed: true);
+      final controller = ChatController(engine);
       await controller.start();
-      return controller;
+      return (controller, engine);
     }
+
+    Future<void> preguntar(ChatController c, String q, {bool ahorro = false}) =>
+        c.ask(q, emergencia: emergencia, indice: indiceDelProyecto, batterySaver: ahorro);
 
     for (final (question, type) in [
       ('me rompí la pierna', TipoRespuesta.emergencia),
       ('¿qué pastilla tomo y en qué dosis?', TipoRespuesta.limite),
-      ('¿puedo subir hoy?', TipoRespuesta.limite),
-      ('¿qué es un frailejón?', TipoRespuesta.respuesta),
     ]) {
       test('"$question" no usa el modelo', () async {
-        final controller = await ready();
-        await controller.ask(question, cards: cards);
+        final (controller, engine) = await ready();
+        await preguntar(controller, question);
         expect(controller.reply?.tipo, type);
-        expect(controller.answer, isEmpty);
+        expect(engine.lastPrompt, isNull);
       });
     }
 
-    test('sin ficha usa el modelo', () async {
-      final controller = await ready();
-      await controller.ask('¿cómo se hace una arepa?', cards: cards);
+    test('el modelo responde con los fragmentos recuperados y se citan sus fuentes', () async {
+      final (controller, engine) = await ready();
+      await preguntar(controller, '¿Qué es el frailejón?');
       expect(controller.reply, isNull);
       expect(controller.answer, 'Hola mundo');
+      expect(engine.lastPrompt, contains('Naturaleza > Frailejón'));
+      expect(engine.lastPrompt, contains('CONSULTA: ¿Qué es el frailejón?'));
+      expect(controller.turnos.last.fuentes, contains('Guion Ecoturístico UTON 2024, p. 5'));
+      expect(controller.turnos.last.verificada, isFalse);
     });
 
-    test('en modo ahorro no usa el modelo', () async {
-      final controller = await ready();
-      await controller.ask('¿cómo se hace una arepa?', cards: cards, batterySaver: true);
+    test('los límites que no son fijos van en las instrucciones del modelo', () async {
+      final (controller, engine) = await ready();
+      await preguntar(controller, '¿Puedo subir hoy al Valle de las Tumbas?');
+      expect(engine.lastPrompt, contains('No digas que un lugar es seguro'));
+      expect(engine.lastPrompt, contains('el clima de hoy'));
+    });
+
+    test('sin fragmentos no llama al modelo y dice que no hay información', () async {
+      final (controller, engine) = await ready();
+      await preguntar(controller, '¿cómo se hace una arepa?');
       expect(controller.reply?.tipo, TipoRespuesta.sinInformacion);
-      expect(controller.answer, isEmpty);
+      expect(engine.lastPrompt, isNull);
     });
 
-    test('sin modelo responde con las fichas', () async {
+    test('en modo ahorro muestra el fragmento sin modelo', () async {
+      final (controller, engine) = await ready();
+      await preguntar(controller, '¿Qué es el frailejón?', ahorro: true);
+      expect(controller.reply?.tipo, TipoRespuesta.respuesta);
+      expect(controller.reply?.fuentes.single, startsWith('Guion'));
+      expect(engine.lastPrompt, isNull);
+    });
+
+    test('sin modelo responde con el fragmento', () async {
       final controller = ChatController(FakeEngine());
       await controller.start();
-      await controller.ask('¿qué es un frailejón?', cards: cards);
+      await preguntar(controller, '¿Qué es el frailejón?');
       expect(controller.reply?.tipo, TipoRespuesta.respuesta);
     });
   });

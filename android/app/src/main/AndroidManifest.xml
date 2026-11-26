@@ -1,5 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Red: descarga del modelo y servidor local del mapa (solo 127.0.0.1). -->
+    <!-- Red: descarga del modelo, servidor local del mapa (127.0.0.1) y, en la app del guía, el servidor
+         que comparte el contenido por su zona wifi. -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Ubicación: solo cuando la persona la pide, en primer plano. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
@@ -9,7 +10,7 @@
         android:fullBackupContent="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:label="Nevados"
+        android:label="${appName}"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

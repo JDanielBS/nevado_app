@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -9,6 +8,8 @@ import 'package:nevado_app/core/access/access_controller.dart';
 import 'package:nevado_app/core/access/pass.dart';
 import 'package:nevado_app/core/content/card.dart';
 import 'package:nevado_app/core/content/card_repository.dart';
+import 'package:nevado_app/core/content/carpeta_contenido.dart';
+import 'package:nevado_app/core/content/contenido_guia.dart';
 import 'package:nevado_app/core/content/content_controller.dart';
 import 'package:nevado_app/core/content/content_package.dart';
 import 'package:nevado_app/core/content/package_io.dart';
@@ -35,7 +36,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final llave = List<int>.generate(bytesLlave, (i) => i);
   final otraLlave = List<int>.filled(bytesLlave, 7);
-  final completas = File(rutaFichas).readAsStringSync();
+  final completas = utf8.decode(leerCarpeta(Directory(rutaSecciones)).codificar());
   final emergencia = fichasDesdeTexto(File(rutaEmergencia).readAsStringSync());
 
   test('la app solo incluye fichas de emergencia en texto plano', () {
@@ -48,7 +49,7 @@ void main() {
   group('paquete cifrado', () {
     test('no deja texto legible y solo abre con su llave', () async {
       final paquete = await cifrarPaquete(utf8.encode(completas), llave);
-      expect(latin1.decode(paquete), isNot(contains('palabrasClave')));
+      expect(latin1.decode(paquete), isNot(contains('Espeletia')));
       expect(utf8.decode(await descifrarPaquete(paquete, llave)), completas);
       await expectLater(descifrarPaquete(paquete, otraLlave), throwsA(isA<Object>()));
     });
@@ -74,8 +75,10 @@ void main() {
       final carpeta = Directory.systemTemp.createTempSync('paquete');
       addTearDown(() => carpeta.deleteSync(recursive: true));
       final destino = File('${carpeta.path}/contenido.nev');
-      await crearPaquete(File(rutaFichas), destino, llave);
-      expect(utf8.decode(await descifrarPaquete(destino.readAsBytesSync(), llave)), completas);
+      await crearPaquete(Directory(rutaSecciones), destino, llave);
+      final abierto = ContenidoGuia.decodificar(await descifrarPaquete(destino.readAsBytesSync(), llave));
+      expect(abierto.archivos, ContenidoGuia.decodificar(utf8.encode(completas)).archivos);
+      expect(abierto.publicado, isNotNull);
     });
   });
 
@@ -141,14 +144,14 @@ void main() {
     test('sin pase solo hay emergencias', () async {
       await access.comprobar();
       await content.pendiente;
-      expect(content.fichas, emergencia);
+      expect(content.secciones, isEmpty);
     });
 
     test('con pase descarga, descifra y guarda solo el paquete cifrado', () async {
       await access.activar(await pase());
       await content.pendiente;
       expect(content.estado, EstadoContenido.listo);
-      expect(content.fichas, hasLength(fichasDesdeTexto(completas).length));
+      expect(content.secciones, hasLength(10));
       expect(paquetes.paquete, remoto);
       await access.comprobar();
       await content.pendiente;
@@ -159,7 +162,7 @@ void main() {
       await access.activar(await pase());
       await content.pendiente;
       await vencer();
-      expect(content.fichas, emergencia);
+      expect(content.secciones, isEmpty);
       expect(paquetes.paquete, isNull);
       expect(registro.guardado!.codigo, isNull);
       expect(access.pase!.llave, isNull);
@@ -216,7 +219,7 @@ void main() {
       paquetes.paquete = null;
       await access.activar(await pase(con: otraLlave));
       await content.pendiente;
-      expect(content.fichas, emergencia);
+      expect(content.secciones, isEmpty);
     });
   });
 

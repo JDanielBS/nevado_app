@@ -6,12 +6,13 @@ import '../core/ui/widgets.dart';
 import '../features/about/about_screen.dart';
 import '../features/access/access_gate.dart';
 import '../features/chat/chat_screen.dart';
+import '../features/guia/compartir_screen.dart';
 import '../features/route/route_screen.dart';
 import '../features/safety/safety_screen.dart';
 import '../features/station/station_screen.dart';
 import 'app_scope.dart';
 
-enum Seccion { ruta, ficha, guia, seguridad, acerca }
+enum Seccion { ruta, ficha, guia, seguridad, acerca, compartir }
 
 /// Estructura del mockup: encabezado, contenido y navegación inferior.
 /// La paleta y la marca de agua cambian según la estación que se está viendo en la ficha;
@@ -93,7 +94,9 @@ class _KumandayShellState extends State<KumandayShell> {
                   Expanded(
                     child: SafeArea(top: false, bottom: false, child: _contenido()),
                   ),
-                  _Cromo(child: _Navegacion(seccion: _seccion, onIr: _ir)),
+                  _Cromo(
+                    child: _Navegacion(seccion: _seccion, onIr: _ir, esGuia: AppScope.maybeOf(context)?.esGuia ?? false),
+                  ),
                 ],
               ),
             ],
@@ -120,6 +123,7 @@ class _KumandayShellState extends State<KumandayShell> {
         Seccion.guia => const AccessGate(child: ChatScreen()),
         Seccion.seguridad => const SafetyScreen(),
         Seccion.acerca => const AboutScreen(),
+        Seccion.compartir => const CompartirScreen(),
       };
 }
 
@@ -225,10 +229,13 @@ class _Emblema extends CustomPainter {
 }
 
 class _Navegacion extends StatelessWidget {
-  const _Navegacion({required this.seccion, required this.onIr});
+  const _Navegacion({required this.seccion, required this.onIr, this.esGuia = false});
 
   final Seccion seccion;
   final ValueChanged<Seccion> onIr;
+
+  /// La app del guía agrega la sección Compartir.
+  final bool esGuia;
 
   static const _entradas = [
     (Seccion.ruta, 'Ruta'),
@@ -248,7 +255,7 @@ class _Navegacion extends StatelessWidget {
           child: Row(
             spacing: 6,
             children: [
-              for (final (destino, etiqueta) in _entradas)
+              for (final (destino, etiqueta) in [..._entradas, if (esGuia) (Seccion.compartir, 'Compartir')])
                 Expanded(
                   child: _BotonNavegacion(
                     etiqueta: etiqueta,

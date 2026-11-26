@@ -6,7 +6,7 @@ import 'dart:math';
 import 'package:cryptography/cryptography.dart';
 import 'package:nevado_app/core/access/pass.dart';
 import 'package:nevado_app/core/access/public_key.dart';
-import 'package:nevado_app/core/content/card.dart';
+import 'package:nevado_app/core/content/carpeta_contenido.dart';
 import 'package:nevado_app/core/content/content_package.dart';
 import 'package:qr/qr.dart';
 
@@ -84,16 +84,14 @@ List<int> llaveDeLaJornada({DateTime? ahora, String carpeta = 'secrets/llaves'})
   return llave;
 }
 
-/// Valida las fichas de [origen] y escribe en [destino] el paquete cifrado.
-Future<void> crearPaquete(File origen, File destino, List<int> llave) async {
-  final texto = origen.readAsStringSync();
-  for (final ficha in jsonDecode(texto) as List) {
-    Ficha.desdeJson(ficha as Map<String, dynamic>);
-  }
+/// Lee las secciones de [origen] y escribe en [destino] el paquete cifrado.
+Future<void> crearPaquete(Directory origen, File destino, List<int> llave) async {
+  final contenido = leerCarpeta(origen, publicado: DateTime.now());
+  if (contenido.archivos.isEmpty) throw FormatException('No hay secciones .md en ${origen.path}.');
   destino.parent.createSync(recursive: true);
   // Se escribe aparte y se renombra, para no entregar nunca un archivo a medias.
   final temporal = File('${destino.path}.tmp')
-    ..writeAsBytesSync(await cifrarPaquete(utf8.encode(texto), llave));
+    ..writeAsBytesSync(await cifrarPaquete(contenido.codificar(), llave));
   temporal.renameSync(destino.path);
 }
 

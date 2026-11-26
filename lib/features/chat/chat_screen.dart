@@ -43,9 +43,11 @@ class _ChatScreenState extends State<ChatScreen> {
   bool get _batterySaver => context.getInheritedWidgetOfExactType<AppScope>()?.settings.ahorroActivo ?? false;
 
   void _ask([String? texto]) {
+    final scope = context.getInheritedWidgetOfExactType<AppScope>();
     _chat.ask(
       texto ?? _input.text,
-      cards: context.getInheritedWidgetOfExactType<AppScope>()?.cards ?? const [],
+      emergencia: scope?.emergencia ?? const [],
+      indice: scope?.indice,
       batterySaver: _batterySaver,
     );
     if (texto == null) _input.clear();
@@ -72,7 +74,7 @@ class _ChatScreenState extends State<ChatScreen> {
         builder: (context, _) {
           final estado = [
             if (saver)
-              const Linea('Modo ahorro: respondo solo con las fichas, sin modelo de IA.')
+              const Linea('Modo ahorro: respondo con el texto de la guía, sin modelo de IA.')
             else
               ..._content(),
             if (_chat.error != null) Linea(_chat.error!, color: Colores.aviso, negrita: true),
@@ -95,8 +97,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     TextSpan(children: [
                       TextSpan(text: 'Guía virtual · sin conexión\n', style: TextStyle(fontWeight: FontWeight.w700)),
                       TextSpan(
-                        text: 'Experimental: puede equivocarse. Responde con las fichas del parque y '
-                            'no informa el estado actual del volcán.',
+                        text: 'Experimental: puede equivocarse. Responde con la información de la guía, '
+                            'cita la fuente y no informa el estado actual del volcán.',
                       ),
                     ]),
                     style: TextStyle(fontSize: 14, height: 1.35, color: Colores.texto),
@@ -172,18 +174,18 @@ class _ChatScreenState extends State<ChatScreen> {
         ChatPhase.unsupported => const [],
         ChatPhase.noModel => _chat.canDownload
             ? [
-                const Linea('Para preguntas que no estén en las fichas, la guía puede usar un modelo de IA de 584 MB. '
-                    'Descárgalo con wifi antes de subir.'),
+                const Linea('Para responder con tus palabras, la guía usa un modelo de IA de 584 MB. '
+                    'Descárgalo antes de subir, con internet o en la red del guía.'),
                 BotonPrincipal(
                   texto: _chat.error == null ? 'Descargar' : 'Reintentar',
                   onPressed: _chat.download,
                 ),
               ]
             : const [
-                Linea('El modelo no está instalado. Conéctate a la red de la estación y escanea el pase.'),
+                Linea('El modelo no está instalado. Conéctate a la zona wifi del guía y escanea el pase.'),
               ],
         ChatPhase.downloading => [
-            Linea('Descargando ${_chat.progress} %'),
+            Linea('Descargando ${_chat.progress} % (desde ${_chat.fuenteDescarga ?? 'internet'})'),
             LinearProgressIndicator(value: _chat.progress / 100),
           ],
         ChatPhase.loading => const [Linea('Cargando el modelo…'), LinearProgressIndicator()],

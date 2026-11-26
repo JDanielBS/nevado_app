@@ -98,12 +98,19 @@ local y emite los pases (`dart run tool/generar_pase.dart`). Los pasos están en
 | Pase de recorrido | `lib/core/access/`, `lib/features/access/`, `tool/generar_pase.dart` |
 | Contenido cifrado | `lib/core/content/`, `lib/features/content/`, `contenido/` |
 | Reglas de seguridad y búsqueda local | `lib/core/safety/`, `lib/core/search/`, `lib/core/assistant/` |
-| Mapa | `lib/features/map/`, `assets/map/`, `maps/` |
+| Mapa y recorrido de 5 paradas | `lib/features/map/`, `assets/map/`, `maps/` (`maps/recorrido/`) |
+| App del guía (editar, publicar, compartir, pases) | `lib/main_guia.dart`, `lib/features/guia/` |
+| Publicación en R2 | `lib/core/content/publicacion_r2.dart`, `cloudflare/` |
 | Modo ahorro y tamaño de texto (en "Acerca") | `lib/core/settings/`, `lib/features/about/` |
 | Comparación de modelos | `eval/` |
 
-El asistente decide en este orden: reglas de emergencia y de límites, fichas y, solo si no hay nada, el modelo
-(que no se usa en modo ahorro). El contenido actual es de demostración y **no está verificado**.
+El asistente decide en este orden: respuestas fijas (emergencias y medicamentos), búsqueda en las secciones de
+la guía y el modelo, que responde solo con los 3 fragmentos recuperados (RAG) y sin fragmentos no se usa. En
+modo ahorro o sin modelo se muestra el fragmento encontrado. La fuente la muestra la app, no el modelo. El
+contenido (`contenido/secciones/`) es un borrador y **no está verificado**.
+
+Hay dos apps del mismo código: la del visitante (`lib/main.dart`, por defecto) y la del guía
+(`lib/main_guia.dart`, `--flavor guia`). Ver `COMANDOS.md` y `cloudflare/README.md`.
 
 Pruebas: `fvm flutter test` y `fvm flutter analyze`.
 

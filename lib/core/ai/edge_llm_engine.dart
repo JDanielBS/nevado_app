@@ -61,6 +61,10 @@ class EdgeLlmEngine implements LlmEngine {
   }
 
   @override
+  Future<String?> rutaInstalada() async =>
+      await isInstalled() ? FlutterEdgeAi.getModelPath(_variant.file.installFilename) : null;
+
+  @override
   Stream<int> install({Uri? origen}) {
     final progress = StreamController<int>();
     Future<void> run() async {

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../core/ai/llm_engine.dart';
 import '../../core/assistant/responder.dart';
 import '../../core/content/card.dart';
+import '../../core/search/search.dart';
 
 /// Una pregunta del visitante y lo que se le respondió.
 class Turno {
@@ -10,11 +11,17 @@ class Turno {
 
   final String pregunta;
 
-  /// Respuesta de las reglas o de las fichas.
+  /// Respuesta fija o sin modelo (fragmentos de la guía tal cual).
   Respuesta? respuesta;
 
   /// Texto generado por el modelo, si respondió él.
   String generado = '';
+
+  /// Citas de los fragmentos que recibió el modelo.
+  List<String> fuentes = const [];
+
+  /// Esos fragmentos vienen de contenido verificado.
+  bool verificada = false;
 
   /// El modelo no pudo responder.
   bool fallo = false;
@@ -45,7 +52,7 @@ class ChatController extends ChangeNotifier {
   /// Texto generado por el modelo.
   String answer = '';
 
-  /// Respuesta de las reglas o de las fichas. Cuando existe, el modelo no interviene.
+  /// Respuesta fija o sin modelo. Cuando existe, el modelo no interviene.
   Respuesta? reply;
 
   /// Conversación completa, de la más antigua a la más reciente.
@@ -54,7 +61,7 @@ class ChatController extends ChangeNotifier {
   Future<void>? _preparation;
   int _discarded = 0;
 
-  /// Servidor de la estación desde el que descargar el modelo.
+  /// Teléfono del guía desde el que descargar el modelo si no hay internet.
   Uri? origen;
 
   /// El modelo ya se comprobó o se encontró instalado.
@@ -64,6 +71,9 @@ class ChatController extends ChangeNotifier {
   bool enPantalla = false;
 
   bool get canDownload => origen != null || engine.canDownload;
+
+  /// Desde dónde se descargó o se intenta descargar: "internet" o "guía".
+  String? fuenteDescarga;
 
   void _set(ChatPhase next, [String? message]) {
     phase = next;
@@ -130,19 +140,29 @@ class ChatController extends ChangeNotifier {
     if (phase != ChatPhase.noModel) return;
     progress = 0;
     _set(ChatPhase.downloading);
-    try {
-      await for (final percent in engine.install(origen: origen)) {
-        progress = percent;
-        notifyListeners();
+    // Primero internet (Hugging Face, con el token de la app); si falla, el teléfono del guía.
+    final intentos = [if (engine.canDownload) null, ?origen];
+    for (final desde in intentos) {
+      fuenteDescarga = desde == null ? 'internet' : 'guía';
+      progress = 0;
+      notifyListeners();
+      try {
+        await for (final percent in engine.install(origen: desde)) {
+          progress = percent;
+          notifyListeners();
+        }
+      } catch (e) {
+        debugPrint('Asistente: no se pudo descargar desde $fuenteDescarga ($e)');
+        continue;
       }
-    } catch (e) {
-      debugPrint('Asistente: $e');
-      return _set(
-        ChatPhase.noModel,
-        'No se pudo descargar. Revisa la conexión y el espacio libre.',
-      );
+      return _load();
     }
-    await _load();
+    _set(
+      ChatPhase.noModel,
+      intentos.isEmpty
+          ? 'No hay de dónde descargar el modelo.'
+          : 'No se pudo descargar. Revisa la conexión, la red del guía y el espacio libre.',
+    );
   }
 
   Future<void> _load() async {
@@ -172,35 +192,43 @@ class ChatController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Orden de decisión: reglas de seguridad, fichas y, solo si no hay nada, el modelo.
+  /// Orden de decisión: reglas fijas (emergencia y medicamentos), búsqueda en la guía y el modelo, que
+  /// responde solo con los fragmentos recuperados (RAG). Sin fragmentos no se llama al modelo: se dice
+  /// que no hay información.
   ///
-  /// Con [batterySaver] activo el modelo no se usa.
+  /// Con [batterySaver] activo, o sin modelo, se muestra el fragmento más relevante tal cual.
   Future<void> ask(
     String question, {
-    List<Ficha> cards = const [],
+    List<Ficha> emergencia = const [],
+    IndiceGuia? indice,
     bool batterySaver = false,
   }) async {
     final text = question.trim();
     if (answering || text.isEmpty) return;
-    final local = responderPregunta(text, cards);
     answer = '';
     error = phase == ChatPhase.ready ? null : error;
     final turno = Turno(text);
     turnos.add(turno);
-    if (local.tipo != TipoRespuesta.sinInformacion ||
-        phase != ChatPhase.ready ||
-        batterySaver) {
+    final fragmentos = recuperar(indice ?? IndiceGuia.vacio, text);
+    final local = respuestaFija(text, emergencia) ??
+        (fragmentos.isEmpty || phase != ChatPhase.ready || batterySaver
+            ? respuestaConFragmentos(fragmentos)
+            : null);
+    if (local != null) {
       reply = local;
       turno.respuesta = local;
       notifyListeners();
       return;
     }
+    turno
+      ..fuentes = citas(fragmentos)
+      ..verificada = fragmentos.every((f) => f.verificado);
     reply = null;
     answering = true;
     notifyListeners();
     final generation = _discarded;
     try {
-      final prompt = 'Responde en español, en máximo 3 frases.\n\n$text';
+      final prompt = armarPrompt(text, fragmentos);
       await for (final part in engine.generate(prompt)) {
         if (generation != _discarded) break;
         answer += part;

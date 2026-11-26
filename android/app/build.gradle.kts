@@ -29,6 +29,20 @@ android {
         versionName = flutter.versionName
     }
 
+    // Dos apps del mismo código: la del visitante (por defecto) y la del guía. Se pueden instalar juntas.
+    flavorDimensions += "app"
+    productFlavors {
+        create("visitante") {
+            dimension = "app"
+            manifestPlaceholders["appName"] = "Nevados"
+        }
+        create("guia") {
+            dimension = "app"
+            applicationIdSuffix = ".guia"
+            manifestPlaceholders["appName"] = "Nevados Guía"
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.

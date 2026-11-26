@@ -1,6 +1,6 @@
 import '../search/normalize.dart';
 
-/// Guardias de seguridad. Se evalúan ANTES de buscar en las fichas.
+/// Guardias de seguridad. Se evalúan ANTES de buscar en la guía y de usar el modelo.
 /// Son deterministas y no dependen de ningún modelo.
 class Regla {
   const Regla({required this.nombre, required this.respuesta, required this.coincide});
@@ -48,6 +48,8 @@ final reglaEmergencia = Regla(
   coincide: _tiene('\\b(${_patronesEmergencia.join('|')})\\b'),
 );
 
+/// Límites fijos, que no pasan por el modelo. El clima actual, "¿es seguro?" y los tiempos de
+/// caminata se piden en las instrucciones del modelo (`armarPrompt`).
 final reglasLimite = <Regla>[
   Regla(
     nombre: 'medicamentos',
@@ -55,30 +57,6 @@ final reglasLimite = <Regla>[
         'Si es una urgencia, toca EMERGENCIA.',
     coincide: _tiene(
       r'\b(pastillas?|medicamentos?|medicinas?|dosis|ibuprofeno|acetaminofen|paracetamol|aspirina|acetazolamida)\b',
-    ),
-  ),
-  Regla(
-    nombre: 'clima-actual',
-    respuesta: 'No puedo saber el clima de hoy ni el pronóstico: esta guía funciona sin conexión y no tiene '
-        'datos meteorológicos actuales. Si tienes señal, consulta al IDEAM. Si no, observa el cielo y, ante '
-        'cualquier duda, no continúes.',
-    coincide: (p) =>
-        RegExp(r'\b(clima|lluvia|llover|llovera|tormenta|temperatura|pronostico|nublado|neblina|nieve)\b')
-            .hasMatch(p) &&
-        RegExp(r'\b(hoy|ahora|actual|actualmente|manana|esta noche|esta tarde|esta manana|va a)\b').hasMatch(p),
-  ),
-  Regla(
-    nombre: 'es-seguro',
-    respuesta: 'No puedo confirmar que sea seguro. Esta guía es orientativa y no conoce las condiciones '
-        'actuales. Consulta a los funcionarios del parque y sigue sus indicaciones.',
-    coincide: _tiene(r'\b(es seguro|esta seguro|seguro ir|puedo ir|puedo subir|esta abierto|esta cerrado|hay peligro|es peligroso)\b'),
-  ),
-  Regla(
-    nombre: 'tiempos',
-    respuesta: 'No tengo tiempos de caminata validados, y depende de tu ritmo, la altura y el clima. No '
-        'planees tu regreso con un tiempo que no esté confirmado por el parque.',
-    coincide: _tiene(
-      r'\b(cuanto (se )?(demora|tarda|toma|dura)|cuantas horas|tiempo de caminata|cuanto tiempo (hasta|para llegar))\b',
     ),
   ),
 ];

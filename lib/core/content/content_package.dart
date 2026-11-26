@@ -20,11 +20,17 @@ Future<Uint8List> cifrarPaquete(List<int> contenido, List<int> llave) async {
 
 /// Lanza una excepción si el paquete está dañado, fue alterado o la llave no corresponde.
 Future<List<int>> descifrarPaquete(List<int> paquete, List<int> llave) async {
+  esPaqueteDeContenido(paquete);
+  final inicio = _marca.length;
+  final caja = SecretBox.fromConcatenation(paquete.sublist(inicio), nonceLength: 12, macLength: 16);
+  return _cifrador.decrypt(caja, secretKey: SecretKey(llave));
+}
+
+/// Lanza [FormatException] si [paquete] no tiene la marca del formato. No necesita la llave.
+void esPaqueteDeContenido(List<int> paquete) {
   final inicio = _marca.length;
   if (paquete.length < inicio + 28 ||
       ascii.decode(paquete.sublist(0, inicio), allowInvalid: true) != 'NEVC1') {
     throw const FormatException('No es un paquete de contenido.');
   }
-  final caja = SecretBox.fromConcatenation(paquete.sublist(inicio), nonceLength: 12, macLength: 16);
-  return _cifrador.decrypt(caja, secretKey: SecretKey(llave));
 }

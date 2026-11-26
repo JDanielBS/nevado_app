@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/route/estaciones.dart';
 import '../../core/ui/palette.dart';
 import '../../core/ui/widgets.dart';
+import 'temas_de_estacion.dart';
 
 /// Ficha de una estación: datos, "Estoy aquí" y contenido por pestañas.
 class StationScreen extends StatelessWidget {
@@ -80,6 +81,7 @@ class StationScreen extends StatelessWidget {
             BloqueTexto(:final titulo, :final texto, :final pendiente) =>
               TarjetaTexto(titulo: titulo, texto: texto, borde: pendiente ? tema.linea : Colores.borde),
           },
+        TemasDeEstacion(estacion: estacion.nombre),
         const SizedBox(height: 6),
         _NavegacionEstaciones(anterior: anterior, siguiente: siguiente),
       ],

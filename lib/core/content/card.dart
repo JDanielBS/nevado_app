@@ -1,4 +1,4 @@
-/// Tipos de contenido de la guía.
+/// Tarjetas fijas (capa determinista) y respuestas del asistente.
 library;
 
 enum Categoria { seguridad, emergencia, norma, clima, fauna, flora, ruta, lugar, refugio }
@@ -17,7 +17,7 @@ const Map<Categoria, String> etiquetaCategoria = {
   Categoria.refugio: 'Refugios',
 };
 
-/// Unidad de contenido de la guía. Una idea por ficha.
+/// Tarjeta fija escrita y revisada por personas, como las de emergencia. No depende del modelo.
 class Ficha {
   const Ficha({
     required this.id,
@@ -27,14 +27,12 @@ class Ficha {
     required this.fuente,
     required this.fechaVerificacion,
     required this.estado,
-    this.palabrasClave = const [],
   });
 
   final String id;
   final Categoria categoria;
   final String titulo;
   final String texto;
-  final List<String> palabrasClave;
 
   /// Entidad o documento de origen.
   final String fuente;
@@ -50,27 +48,20 @@ class Ficha {
         categoria: Categoria.values.byName(json['categoria'] as String),
         titulo: json['titulo'] as String,
         texto: json['texto'] as String,
-        palabrasClave: [for (final p in (json['palabrasClave'] as List? ?? const [])) p as String],
         fuente: json['fuente'] as String,
         fechaVerificacion: json['fechaVerificacion'] as String?,
         estado: EstadoFicha.values.byName(json['estado'] as String),
       );
 }
 
-class Coincidencia {
-  const Coincidencia(this.ficha, this.puntaje);
-  final Ficha ficha;
-  final int puntaje;
-}
-
 enum TipoRespuesta {
-  /// Se encontró contenido en las fichas.
+  /// Se encontraron fragmentos de la guía y se muestran sin modelo (modo ahorro o sin modelo).
   respuesta,
 
-  /// No hay ficha suficiente: no se inventa.
+  /// No hay fragmento con fuente: no se inventa.
   sinInformacion,
 
-  /// La app no puede responder por diseño (clima actual, tiempos, "es seguro").
+  /// La app no responde por diseño (medicamentos).
   limite,
 
   /// La persona describe una urgencia.
@@ -78,20 +69,18 @@ enum TipoRespuesta {
 }
 
 class Respuesta {
-  const Respuesta(this.tipo, this.texto, this.fuentes);
+  const Respuesta(this.tipo, this.texto, {this.fuentes = const [], this.tarjetas = const [], this.verificada = false});
   final TipoRespuesta tipo;
   final String texto;
 
-  /// Fichas en las que se basa la respuesta.
-  final List<Ficha> fuentes;
+  /// Citas de los fragmentos en que se basa (guion y página).
+  final List<String> fuentes;
+
+  /// Tarjetas fijas que se muestran, como las de emergencia.
+  final List<Ficha> tarjetas;
+  final bool verificada;
 }
 
-/// Contrato del asistente. Hoy lo implementa la búsqueda local; más adelante
-/// puede implementarlo un modelo en el dispositivo sin cambiar las pantallas.
-abstract interface class Asistente {
-  Future<Respuesta> responder(String pregunta);
-}
-
-/// Fichas completas, para la estación y las pruebas. No se incluyen en la app: se entregan cifradas.
-/// Hoy es contenido de demostración.
-const rutaFichas = 'contenido/fichas.demo.json';
+/// Secciones de la guía en Markdown, para la app del guía y las pruebas. No se incluyen en la app del
+/// visitante: se entregan cifradas. Hoy es contenido en borrador.
+const rutaSecciones = 'contenido/secciones';

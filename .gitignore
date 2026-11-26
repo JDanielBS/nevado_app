@@ -107,3 +107,4 @@ maps/salida/
 
 # Archivos que reparte la estación (modelo y copias del APK)
 /estacion/
+.wrangler/

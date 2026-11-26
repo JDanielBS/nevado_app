@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
-import '../../core/content/card_repository.dart';
 import '../../core/ui/palette.dart';
 import '../../core/ui/widgets.dart';
 
@@ -11,7 +10,7 @@ class SafetyScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final emergencias = fichasDeEmergencia(AppScope.maybeOf(context)?.cards ?? const []);
+    final emergencias = AppScope.maybeOf(context)?.emergencia ?? const [];
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
       children: [

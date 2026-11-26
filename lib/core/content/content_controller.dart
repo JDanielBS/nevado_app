@@ -1,35 +1,49 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
 import '../access/access_controller.dart';
 import '../access/pass.dart';
+import '../search/search.dart';
 import 'card.dart';
-import 'card_repository.dart';
 import 'content_package.dart';
+import 'contenido_guia.dart';
+import 'fuente_guia.dart';
 import 'package_io.dart';
+import 'seccion.dart';
 
 enum EstadoContenido { bloqueado, descargando, listo, error }
 
-/// Fichas disponibles según el pase: las de emergencia siempre; las demás solo con un pase vigente.
+/// Contenido según el pase: las tarjetas de emergencia siempre; las secciones, solo con un pase vigente.
 ///
 /// El texto descifrado vive únicamente en memoria. Al vencer el pase se descarta y se borra el paquete.
-class ContentController extends ChangeNotifier {
-  ContentController({required this.emergencia, required this.store, this.descargar = descargarPaquete})
-    : _fichas = emergencia;
+class ContentController extends ChangeNotifier implements FuenteGuia {
+  ContentController({
+    required this.emergencia,
+    required this.store,
+    this.descargar = descargarPaquete,
+    this.internet,
+  });
 
+  @override
   final List<Ficha> emergencia;
   final PackageStore store;
   final Future<Uint8List> Function(Uri) descargar;
 
-  List<Ficha> _fichas;
+  /// Paquete publicado en R2. Se intenta después del teléfono del guía.
+  final Uri? internet;
+
+  List<SeccionGuia> _secciones = const [];
+  IndiceGuia _indice = IndiceGuia.vacio;
   EstadoContenido _estado = EstadoContenido.bloqueado;
   (EstadoAcceso, Pase?)? _visto;
   Future<void> _cola = Future.value();
   AccessController? _acceso;
 
-  List<Ficha> get fichas => _fichas;
+  @override
+  List<SeccionGuia> get secciones => _secciones;
+  @override
+  IndiceGuia get indice => _indice;
   EstadoContenido get estado => _estado;
 
   /// Termina cuando se han aplicado todos los cambios pendientes.
@@ -39,6 +53,31 @@ class ContentController extends ChangeNotifier {
     _acceso = acceso;
     acceso.addListener(_sincronizar);
     _sincronizar();
+  }
+
+  /// Descarga el paquete de internet y lo guarda cifrado, aunque todavía no haya pase: así el visitante
+  /// lo trae desde casa y en el parque solo necesita escanear el pase. Sin red no hace nada.
+  Future<void> predescargar() {
+    final origen = internet;
+    if (origen == null) return _cola;
+    _cola = _cola.then((_) async {
+      try {
+        final paquete = await descargar(origen);
+        esPaqueteDeContenido(paquete);
+        // Con un pase vigente, mejor abrir la versión nueva de una vez.
+        final acceso = _acceso;
+        if (acceso != null && acceso.activo && acceso.pase?.llave != null) {
+          final secciones = await _descifrar(paquete, acceso.pase!.llave!);
+          await store.guardar(paquete);
+          if (acceso.activo) _publicar(secciones, EstadoContenido.listo);
+        } else {
+          await store.guardar(paquete);
+        }
+      } catch (e) {
+        debugPrint('Contenido: sin descarga previa ($e)');
+      }
+    });
+    return _cola;
   }
 
   /// Vuelve a intentar la descarga con el pase actual.
@@ -64,9 +103,12 @@ class ContentController extends ChangeNotifier {
 
   Future<void> _aplicar(AccessController acceso) async {
     switch (acceso.estado) {
-      case EstadoAcceso.vencido || EstadoAcceso.sinPase:
+      case EstadoAcceso.vencido:
         _publicar(null, EstadoContenido.bloqueado);
         await store.borrar();
+      case EstadoAcceso.sinPase:
+        // Se conserva el paquete descargado antes de la visita: sigue cifrado y sin la llave no se abre.
+        _publicar(null, EstadoContenido.bloqueado);
       case EstadoAcceso.activo:
         await _abrir(acceso, acceso.pase!);
       case EstadoAcceso.relojAtrasado || EstadoAcceso.comprobando:
@@ -79,26 +121,26 @@ class ContentController extends ChangeNotifier {
     if (llave == null) return _publicar(null, EstadoContenido.bloqueado);
     bool vigente() => acceso.activo && identical(acceso.pase, pase);
 
-    final origen = pase.contenido;
-    if (origen != null) {
+    // Primero el teléfono del guía (zona wifi, sin internet) y después R2.
+    for (final origen in [?pase.contenido, ?internet]) {
       _publicar(null, EstadoContenido.descargando);
       try {
         final paquete = await descargar(origen);
-        final fichas = await _descifrar(paquete, llave);
+        final secciones = await _descifrar(paquete, llave);
         if (!vigente()) return;
         await store.guardar(paquete);
-        if (vigente()) _publicar(fichas, EstadoContenido.listo);
+        if (vigente()) _publicar(secciones, EstadoContenido.listo);
         return;
       } catch (e) {
-        debugPrint('Contenido: no se pudo descargar ($e)');
+        debugPrint('Contenido: no se pudo descargar de $origen ($e)');
       }
     }
     // Sin descarga: se usa el paquete guardado, si la llave del pase lo abre.
     final guardado = await store.leer();
     if (guardado != null) {
       try {
-        final fichas = await _descifrar(guardado, llave);
-        if (vigente()) _publicar(fichas, EstadoContenido.listo);
+        final secciones = await _descifrar(guardado, llave);
+        if (vigente()) _publicar(secciones, EstadoContenido.listo);
         return;
       } catch (e) {
         debugPrint('Contenido: el paquete guardado no corresponde a este pase');
@@ -107,16 +149,17 @@ class ContentController extends ChangeNotifier {
     if (vigente()) _publicar(null, EstadoContenido.error);
   }
 
-  Future<List<Ficha>> _descifrar(Uint8List paquete, List<int> llave) async =>
-      fichasDesdeTexto(utf8.decode(await descifrarPaquete(paquete, llave)));
+  Future<List<SeccionGuia>> _descifrar(Uint8List paquete, List<int> llave) async =>
+      ContenidoGuia.decodificar(await descifrarPaquete(paquete, llave)).secciones;
 
-  void _publicar(List<Ficha>? reservadas, EstadoContenido estado) {
-    if (reservadas == null) {
-      if (identical(_fichas, emergencia) && _estado == estado) return;
-      _fichas = emergencia;
+  void _publicar(List<SeccionGuia>? secciones, EstadoContenido estado) {
+    if (secciones == null) {
+      if (_secciones.isEmpty && _estado == estado) return;
+      _secciones = const [];
+      _indice = IndiceGuia.vacio;
     } else {
-      final ids = {for (final f in emergencia) f.id};
-      _fichas = [...emergencia, ...reservadas.where((f) => !ids.contains(f.id))];
+      _secciones = secciones;
+      _indice = IndiceGuia.de(secciones);
     }
     _estado = estado;
     notifyListeners();
