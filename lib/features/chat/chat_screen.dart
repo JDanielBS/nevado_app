@@ -89,7 +89,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ReplyView(reply: reply)
             else if (_chat.answer.isNotEmpty) ...[
               const Text('Respuesta del modelo, sin fuente verificada:'),
-              SelectableText(_chat.answer, style: const TextStyle(fontSize: 18)),
+              Text(_chat.answer, style: const TextStyle(fontSize: 18)),
             ],
             const SizedBox(height: 16),
             if (saver)

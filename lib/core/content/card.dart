@@ -91,3 +91,7 @@ class Respuesta {
 abstract interface class Asistente {
   Future<Respuesta> responder(String pregunta);
 }
+
+/// Fichas completas, para la estación y las pruebas. No se incluyen en la app: se entregan cifradas.
+/// Hoy es contenido de demostración.
+const rutaFichas = 'contenido/fichas.demo.json';

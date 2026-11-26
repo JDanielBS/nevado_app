@@ -7,6 +7,7 @@ import '../access/access_gate.dart';
 import '../cards/cards_screen.dart';
 import '../chat/chat_screen.dart';
 import '../chat/model_provisioning.dart';
+import '../content/content_status.dart';
 import '../emergency/emergency_screen.dart';
 import '../location/location_screen.dart';
 import '../map/map_screen.dart';
@@ -48,6 +49,7 @@ class HomeScreen extends StatelessWidget {
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               const AccessCard(),
+              const ContentStatus(),
               const ModelStatus(),
               for (final (label, icon, screen) in _entries)
                 FilledButton.icon(

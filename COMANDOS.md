@@ -63,67 +63,110 @@ flutter run
 
 Mientras corre: `r` recarga, `R` reinicia y `q` cierra.
 
-## 4. Generar el pase del recorrido
+## 4. Generar el pase (y entregar el modelo)
 
-Sin un pase vigente solo abren Emergencias y Mi ubicación.
+Sin un pase vigente solo abren Emergencias y Mi ubicación. Cada pase dura **10 minutos desde que se genera**.
+
+Requisitos: el modelo en `estacion/` (sección 2) y `secrets/pase_privada.key`.
+
+El servidor entrega también las **fichas cifradas** (`contenido/fichas.demo.json`, o `--contenido RUTA`). Para
+publicar cambios en las fichas basta con editar el archivo y pulsar **Enter**: no hace falta recompilar. La
+llave de cada día se crea en `secrets/llaves/`. Un pase `--sin-servidor` activa la app, pero no entrega fichas.
+
+### Paso 1. Ejecutar uno de estos comandos
+
+| Situación | Comando |
+|---|---|
+| Teléfono en la misma red wifi que el computador | `dart run tool/generar_pase.dart` |
+| Teléfono conectado por cable USB (no gasta datos) | `dart run tool/generar_pase.dart --usb` |
+| Solo el pase, sin entregar el modelo | `dart run tool/generar_pase.dart --sin-servidor` |
+
+Con Flutter 3.50.1 sin FVM, ejecutar antes `export PATH=$HOME/herramientas/flutter/bin:$PATH`.
+
+Esperar el mensaje **"Servidor listo"**. La terminal queda abierta entregando el modelo.
+
+### Paso 2. Abrir el QR (en otra terminal)
 
 ```sh
-dart run tool/generar_pase.dart                 # 12 minutos (pruebas)
-dart run tool/generar_pase.dart --minutos 720   # 12 horas
+xdg-open build/pases/pase.svg     # Linux
+start build\pases\pase.svg        # Windows
 ```
 
-Abrir `build/pases/pase.svg` en un navegador (en Linux, `xdg-open build/pases/pase.svg`; en Windows,
-`start build\pases\pase.svg`) y escanearlo desde la app con **Escanear pase**.
+### Paso 3. En el teléfono
 
-**Antes de usarlo en otro computador:** copiar `secrets/pase_privada.key`, recibido por un canal privado. Sin
-ese archivo el comando se detiene.
+Abrir Nevados, tocar **Escanear pase** y escanear el QR.
 
-`dart run tool/generar_pase.dart --nuevas-claves` reemplaza las claves. Invalida los pases anteriores y obliga
-a compilar e instalar la app de nuevo. Usarlo solo si el equipo lo acuerda.
+- Si no tiene el modelo, lo descarga.
+- Si tiene el modelo de una versión anterior o dañado, descarga el actual y después borra el anterior.
+- Si ya tiene el actual, no lo descarga.
+- Las fichas se descargan con cada pase y se borran cuando vence.
+
+Esperar a **"Modelo instalado"** en el inicio antes de cerrar el servidor, desconectar el cable o salir de la red.
+
+### Otro pase y cierre
+
+- **Enter** en la terminal del servidor: emite un pase nuevo (recargar el QR).
+- **Ctrl+C**: apaga el servidor.
+- Otra duración: agregar `--minutos 720` (12 horas).
+
+### Si el puerto está ocupado
+
+Cerrar el otro servidor con `Ctrl+C`. En Linux, para cerrarlo desde otra terminal:
+
+```sh
+ss -ltnp | grep :8000     # muestra el proceso (pid)
+fuser -k 8000/tcp         # lo termina
+```
+
+También se puede usar otro puerto: `--puerto 8001`.
+
+### Sobre las versiones del modelo
+
+La versión del modelo la define la app. Para cambiarlo: actualizar `lib/core/ai/model_file.dart` y
+`edge_llm_engine.dart`, compilar e instalar el APK nuevo y colocar el archivo nuevo en `estacion/`.
+
+### Claves
+
+Para generar pases en otro computador, copiar allí `secrets/pase_privada.key`, recibido por un canal privado.
+`--nuevas-claves` reemplaza las claves: invalida los pases anteriores y obliga a compilar e instalar de nuevo.
 
 ## 5. Compilar el APK
 
 APK que reparte la estación (sin token):
 
 ```sh
-flutter build apk --release --target-platform android-arm64
+flutter build apk --release --target-platform android-arm64 --obfuscate --split-debug-info=build/symbols
 ```
+
+`--obfuscate` dificulta la ingeniería inversa. Conservar `build/symbols/` de cada versión repartida: se
+necesita para interpretar los errores. Las capturas de pantalla están bloqueadas en todas las compilaciones.
 
 Queda en `build/app/outputs/flutter-apk/app-release.apk`. Hoy se firma con la clave de depuración del
 computador que compila: un APK compilado en otro computador no actualiza al ya instalado (hay que
 desinstalarlo antes).
 
-Instalación por cable:
+Instalación o actualización por cable, **sin borrar los datos ni el modelo**:
 
 ```sh
-flutter install --release
+adb install -r build/app/outputs/flutter-apk/app-release.apk
 ```
 
-## 5.1. Estación de instalación
+`adb` está en `platform-tools` del SDK de Android (en Linux, `~/Android/Sdk/platform-tools/adb`).
+No usar `flutter install`: desinstala antes y se pierde el modelo.
 
-Antes: modelo en `estacion/` (sección 2), APK compilado (sección 5) y `secrets/pase_privada.key`.
+## 5.1. Instalar la app por QR (estación)
 
-1. Conectar el computador a la red wifi de la estación (o a la zona wifi de un teléfono).
-2. Ejecutar:
+Antes: APK compilado (sección 5) y requisitos de la sección 4.
 
-```sh
-dart run tool/servidor_estacion.dart
-```
+1. Conectar el computador y el teléfono a la misma red wifi (o a la zona wifi de un teléfono).
+2. Ejecutar `dart run tool/generar_pase.dart`. Si hay varias redes, las lista; repetir con `--ip`.
+3. Escanear `build/pases/instalar.svg` con la **cámara** del teléfono, descargar la aplicación y permitir la
+   instalación.
+4. Seguir los pasos 2 y 3 de la sección 4 (`pase.svg` se escanea **desde la app**).
 
-Si hay varias redes, el comando las lista; repetirlo con `--ip`. Opciones: `--puerto`, `--minutos`, `--apk` y
-`--modelo`.
-
-3. En el teléfono, conectado a la **misma red**:
-   1. Escanear `build/pases/instalar.svg` con la cámara, descargar la aplicación y permitir la instalación.
-   2. Abrir Nevados, tocar **Escanear pase** y escanear `build/pases/pase.svg`.
-   3. Esperar a "Modelo instalado" en la pantalla de inicio.
-4. **Enter** en la terminal emite un pase nuevo. **Ctrl+C** apaga el servidor.
-
-Los pases solo se muestran en el computador de la estación; el servidor no los publica.
-
-Si el teléfono no conecta: permitir el puerto 8000 en el cortafuegos del computador (en Linux con `ufw`,
-`sudo ufw allow 8000/tcp`; en Windows, aceptar el aviso), apagar los datos móviles del teléfono y comprobar que
-la red no aísle a los equipos entre sí.
+Si el teléfono no conecta: permitir el puerto 8000 en el cortafuegos (en Linux con `ufw`,
+`sudo ufw allow 8000/tcp`; en Windows, aceptar el aviso) y comprobar que la red no aísle a los equipos entre sí.
+Algunas redes públicas o universitarias lo hacen; en ese caso usar una zona wifi propia o `--usb`.
 
 ## 6. Pruebas y revisión del código
 
@@ -137,7 +180,7 @@ Con Flutter 3.50.1, `flutter analyze` reporta avisos de obsolescencia de `packag
 
 ## 7. Probar sin internet
 
-1. Instalar y activar desde la estación (sección 5.1).
+1. Instalar la app (sección 5 o 5.1) y activarla con un pase (sección 4).
 2. Activar el modo avión.
 3. Recorrer las secciones y hacer preguntas en el asistente.
 4. Cerrar la app, reiniciar el teléfono y repetir.
@@ -161,6 +204,8 @@ resto de comandos.
 
 | Síntoma | Solución |
 |---|---|
+| "No disponible" en Contenido de la guía | Usar un pase del servidor (no `--sin-servidor`), seguir en la red de la estación y tocar **Reintentar contenido** |
+| La pantalla sale negra al grabarla o capturarla | Es el bloqueo de capturas |
 | Error de versión de Android Gradle Plugin | Usar Flutter 3.47.9 con FVM o agregar `--android-skip-build-dependency-validation` |
 | "El modelo no está instalado" | Conectarse a la red de la estación y escanear el pase |
 | "No se pudo descargar" | Revisar que el teléfono siga en la red de la estación y tocar **Reintentar descarga** |
