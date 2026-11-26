@@ -65,3 +65,20 @@ desktop.ini
 
 # Otros
 *.local
+
+# FVM Version Cache
+.fvm/
+
+# Flutter / Dart / FVM
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+*.iml
+**/ios/Flutter/.last_build_id
+app.*.symbols
+app.*.map.json
+/android/app/debug
+/android/app/profile
+/android/app/release
