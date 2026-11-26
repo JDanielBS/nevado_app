@@ -36,7 +36,7 @@ class Estacion {
   final String ecosistema;
 
   /// Contenido propio de cada pestaña de la ficha, basado en los guiones del parque
-  /// (`assets/content/Guion Ecoturistico UTON 2024.md` y `Guion turistico zona norte.md`).
+  /// (`contenido/Guion Ecoturistico UTON 2024.md` y `Guion turistico zona norte.md`).
   final Map<Pestana, Ficha> fichas;
 
   String get textoAltitud =>

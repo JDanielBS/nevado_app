@@ -26,8 +26,8 @@ void main() {
   test('la voz se pide en la misma estación que el modelo', () {
     expect(origen.resolve(nombreVoz).toString(), 'http://192.168.1.20:8000/$nombreVoz');
     expect(sha256Voz, hasLength(64));
-    expect(descargasDeEstacion(apk: File('a'), modelo: File('m'), voz: File('v')).keys,
-        ['/nevados.apk', '/$nombreModelo', '/$nombreVoz']);
+    final descargas = descargasDeEstacion(modelo: File('m'), voz: File('v'), contenido: File('c'));
+    expect(descargas.keys, ['/$nombreModelo', '/$nombreVoz', '/contenido.nev']);
   });
 
   test('el pase lleva firmada la dirección del modelo', () async {

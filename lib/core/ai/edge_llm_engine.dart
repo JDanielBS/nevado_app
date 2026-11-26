@@ -47,8 +47,17 @@ class EdgeLlmEngine implements LlmEngine {
   Future<bool> isInstalled() async {
     await _init();
     // También debe estar marcado como activo; el paquete lo recuerda entre reinicios.
-    return await FlutterEdgeAi.isModelInstalled(_variant.file.installFilename) &&
-        FlutterEdgeAi.hasActiveModel();
+    if (!await FlutterEdgeAi.isModelInstalled(_variant.file.installFilename) ||
+        !FlutterEdgeAi.hasActiveModel()) {
+      return false;
+    }
+    // Un archivo de otra versión o dañado se borra y cuenta como no instalado, para descargarlo de nuevo.
+    try {
+      await _verify();
+      return true;
+    } on CorruptModelException {
+      return false;
+    }
   }
 
   @override
@@ -83,16 +92,29 @@ class EdgeLlmEngine implements LlmEngine {
   Future<void> load() async {
     if (_model != null) return;
     await _init();
+    await _verify();
+    _model = await FlutterEdgeAi.getActiveModel(maxTokens: 2048, preferredBackend: PreferredBackend.cpu);
+    await _removeOldModels();
+  }
+
+  Future<void> _verify() async {
     final file = _variant.file;
     await verifyModelFile(
       await FlutterEdgeAi.getModelPath(file.installFilename),
       file.sha256,
       onCorrupt: () => FlutterEdgeAi.uninstallModel(file.installFilename),
     );
-    _model = await FlutterEdgeAi.getActiveModel(
-      maxTokens: 2048,
-      preferredBackend: PreferredBackend.cpu,
-    );
+  }
+
+  /// Libera el espacio de modelos de versiones anteriores de la app, una vez que el actual cargó.
+  Future<void> _removeOldModels() async {
+    try {
+      for (final id in await FlutterEdgeAi.listInstalledModels()) {
+        if (id != _variant.file.installFilename) await FlutterEdgeAi.uninstallModel(id);
+      }
+    } catch (e) {
+      debugPrint('No se pudo borrar un modelo anterior: $e');
+    }
   }
 
   @override

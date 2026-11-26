@@ -194,7 +194,8 @@ class VoiceChatController extends ChangeNotifier {
     final generacion = _generacion;
     await parada;
     await chat.ask(question, cards: cards, batterySaver: batterySaver);
-    if (generacion != _generacion || turnos.length == previos) return;
+    // La conversación puede haberse borrado mientras tanto (pase vencido).
+    if (generacion != _generacion || turnos.isEmpty || turnos.length == previos) return;
     if (autoSpeak && permitida && !batterySaver) unawaited(repeat(turnos.last));
   }
 

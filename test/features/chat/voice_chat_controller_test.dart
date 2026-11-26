@@ -229,4 +229,25 @@ void main() {
     await voice.start();
     expect(tts.loads, 2);
   });
+
+  test('al borrar la conversación no queda ninguna respuesta', () async {
+    await voice.start();
+    await preguntar('frailejón');
+    await preguntar();
+    voice.chat.clear();
+    expect(voice.turnos, isEmpty);
+  });
+
+  test('si la conversación se borra mientras se genera, no se lee ni falla', () async {
+    await voice.start();
+    await preguntar('frailejón');
+    final pregunta = voice.ask(libre);
+    voice.chat.addListener(() {
+      if (voice.chat.answering) voice.chat.clear();
+    });
+    await pregunta;
+    await pumpEventQueue();
+    expect(voice.turnos, isEmpty);
+    expect(tts.spoken, isEmpty);
+  });
 }

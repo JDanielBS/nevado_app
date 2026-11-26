@@ -1,15 +1,15 @@
-// Estación de instalación: reparte la app, el modelo y la voz por la red local y emite los pases.
-//
-// Uso, desde la raíz del proyecto:
-//   dart run tool/servidor_estacion.dart
+// Estación de instalación: reparte la app, el modelo y la voz y emite los pases.
+// Normalmente se ejecuta mediante `dart run tool/generar_pase.dart`, que acepta las mismas opciones.
 //
 // Opciones:
-//   --ip 192.168.1.20   dirección de este computador (por defecto se detecta)
+//   --usb                entrega por cable USB (requiere el teléfono conectado con depuración USB)
+//   --ip 192.168.1.20    dirección de este computador (por defecto se detecta)
 //   --puerto 8000
-//   --minutos 12        vigencia de los pases
-//   --apk RUTA          por defecto build/app/outputs/flutter-apk/app-release.apk
-//   --modelo RUTA       por defecto estacion/<archivo del modelo>
-//   --voz RUTA          por defecto estacion/<paquete de la voz>
+//   --minutos 10         vigencia de los pases
+//   --apk RUTA           por defecto build/app/outputs/flutter-apk/app-release.apk
+//   --modelo RUTA        por defecto estacion/<archivo del modelo>
+//   --contenido RUTA     fichas a cifrar; por defecto contenido/fichas.demo.json
+//   --voz RUTA           por defecto estacion/<paquete de la voz>
 //
 // El pase no se publica en la red: el personal muestra el QR desde este computador.
 import 'dart:io';
@@ -17,6 +17,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:nevado_app/core/ai/model_file.dart';
 import 'package:nevado_app/core/voice/voice_file.dart';
+import 'package:nevado_app/core/content/card.dart' show rutaFichas;
 
 import 'estacion.dart';
 import 'pases.dart';
@@ -39,6 +40,22 @@ Future<String> detectarIp() async {
   );
 }
 
+/// Redirige el puerto del teléfono a este computador a través del cable USB.
+Future<void> abrirPuenteUsb(int puerto) async {
+  final casa = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? '';
+  final sdk =
+      Platform.environment['ANDROID_HOME'] ??
+      (Platform.isWindows ? '$casa/AppData/Local/Android/Sdk' : '$casa/Android/Sdk');
+  final instalado = File('$sdk/platform-tools/adb${Platform.isWindows ? '.exe' : ''}');
+  final adb = instalado.existsSync() ? instalado.path : 'adb';
+  try {
+    final resultado = await Process.run(adb, ['reverse', 'tcp:$puerto', 'tcp:$puerto']);
+    if (resultado.exitCode != 0) salir('No se pudo abrir el puente USB: ${resultado.stderr}');
+  } on ProcessException {
+    salir('No se encontró adb. Instala las herramientas de plataforma de Android.');
+  }
+}
+
 Future<void> main(List<String> argumentos) async {
   final puerto = numero(argumentos, '--puerto', 8000);
   final minutos = numero(argumentos, '--minutos', minutosPorDefecto);
@@ -46,8 +63,16 @@ Future<void> main(List<String> argumentos) async {
   final modelo = File(opcion(argumentos, '--modelo') ?? 'estacion/$nombreModelo');
   final voz = File(opcion(argumentos, '--voz') ?? 'estacion/$nombreVoz');
 
-  if (!apk.existsSync()) salir('No existe el APK en ${apk.path}. Compílalo (ver COMANDOS.md).');
-  if (!modelo.existsSync()) salir('No existe el modelo en ${modelo.path}. Descárgalo (ver COMANDOS.md).');
+  final fichas = File(opcion(argumentos, '--contenido') ?? rutaFichas);
+  if (!fichas.existsSync()) salir('No existen las fichas en ${fichas.path}.');
+  final paquete = File('build/estacion/contenido.nev');
+
+  if (!modelo.existsSync()) {
+    salir(
+      'No existe el modelo en ${modelo.path}. Descárgalo (ver COMANDOS.md) o genera un pase sin '
+      'descarga con: dart run tool/generar_pase.dart --sin-servidor',
+    );
+  }
 
   if (!voz.existsSync()) salir('No existe la voz en ${voz.path}. Descárgala (ver COMANDOS.md).');
 
@@ -61,21 +86,55 @@ Future<void> main(List<String> argumentos) async {
   if (huella != sha256Modelo) salir('El archivo del modelo está incompleto o no es el esperado.');
 
   final claves = await cargarClaves();
-  final base = Uri.parse('http://${opcion(argumentos, '--ip') ?? await detectarIp()}:$puerto/');
-  final descargas = descargasDeEstacion(apk: apk, modelo: modelo, voz: voz);
-  await iniciarServidor(descargas, puerto: puerto, registro: stdout.writeln);
+  final usb = argumentos.contains('--usb');
+  final ip = usb ? '127.0.0.1' : opcion(argumentos, '--ip') ?? await detectarIp();
+  final base = Uri.parse('http://$ip:$puerto/');
+  final descargas = descargasDeEstacion(
+    apk: apk.existsSync() ? apk : null,
+    modelo: modelo,
+    voz: voz,
+    contenido: paquete,
+  );
+  try {
+    await iniciarServidor(descargas, puerto: puerto, registro: stdout.writeln);
+  } on SocketException {
+    salir('El puerto $puerto está ocupado. Cierra el otro servidor o usa --puerto.');
+  }
+  if (usb) await abrirPuenteUsb(puerto);
 
-  const rutaInstalar = 'build/pases/instalar.svg';
-  File(rutaInstalar)
-    ..parent.createSync(recursive: true)
-    ..writeAsStringSync(dibujarQr('$base', 'Instalar Nevados'));
   stdout.writeln('\nServidor listo en $base');
-  stdout.writeln('1) QR para instalar la app: ${File(rutaInstalar).absolute.path}');
+  if (apk.existsSync()) {
+    const rutaInstalar = 'build/pases/instalar.svg';
+    File(rutaInstalar)
+      ..parent.createSync(recursive: true)
+      ..writeAsStringSync(dibujarQr('$base', 'Instalar Nevados'));
+    stdout.writeln('1) QR para instalar la app: ${File(rutaInstalar).absolute.path}');
+  } else {
+    stdout.writeln('Sin APK en ${apk.path}: no se ofrece la instalación, solo el modelo.');
+  }
   stdout.writeln('2) QR del pase:');
-  await emitirPase(claves, minutos, modelo: base.resolve(nombreModelo));
+  // Las fichas se cifran de nuevo con cada pase: así los cambios se publican sin reiniciar.
+  Future<void> emitir() async {
+    final llave = llaveDeLaJornada();
+    try {
+      await crearPaquete(fichas, paquete, llave);
+    } catch (e) {
+      stderr.writeln('No se pudo preparar el contenido de ${fichas.path}: $e');
+      return;
+    }
+    await emitirPase(
+      claves,
+      minutos,
+      modelo: base.resolve(nombreModelo),
+      contenido: base.resolve('contenido.nev'),
+      llave: llave,
+    );
+  }
+
+  await emitir();
   stdout.writeln('\nEnter: emitir un pase nuevo. Ctrl+C: salir.');
 
   await for (final _ in stdin) {
-    await emitirPase(claves, minutos, modelo: base.resolve(nombreModelo));
+    await emitir();
   }
 }

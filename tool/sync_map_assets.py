@@ -1,7 +1,7 @@
 """Copia a la app el mapa, que se genera fuera de ella, y actualiza la lista de pubspec.yaml.
 
 - Mapa: maps/visor, maps/salida y la imagen satelital -> assets/map/
-- Las fichas viven en assets/content/ y no se copian de ningún lado.
+- Las fichas viven en contenido/ (se entregan cifradas) y assets/content/ (emergencia).
 
 Uso (desde la raíz del repositorio, después de generar el mapa):
     python3 tool/sync_map_assets.py

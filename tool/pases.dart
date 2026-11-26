@@ -1,14 +1,17 @@
 // Funciones comunes para emitir pases. Las usan generar_pase.dart y servidor_estacion.dart.
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:nevado_app/core/access/pass.dart';
 import 'package:nevado_app/core/access/public_key.dart';
+import 'package:nevado_app/core/content/card.dart';
+import 'package:nevado_app/core/content/content_package.dart';
 import 'package:qr/qr.dart';
 
 /// Valor corto para pruebas. Subirlo para el uso en el recorrido.
-const minutosPorDefecto = 12;
+const minutosPorDefecto = 10;
 
 const rutaPrivada = 'secrets/pase_privada.key';
 const rutaPublica = 'lib/core/access/public_key.dart';
@@ -69,6 +72,31 @@ Future<SimpleKeyPair> cargarClaves({bool nuevas = false}) async {
   return claves;
 }
 
+/// Llave del contenido para la jornada de hoy. Cambia cada día; se crea la primera vez que se pide.
+List<int> llaveDeLaJornada({DateTime? ahora, String carpeta = 'secrets/llaves'}) {
+  final dia = (ahora ?? DateTime.now()).toIso8601String().substring(0, 10);
+  final archivo = File('$carpeta/$dia.key');
+  if (archivo.existsSync()) return base64Url.decode(archivo.readAsStringSync().trim());
+  final azar = Random.secure();
+  final llave = [for (var i = 0; i < bytesLlave; i++) azar.nextInt(256)];
+  archivo.parent.createSync(recursive: true);
+  archivo.writeAsStringSync(base64Url.encode(llave));
+  return llave;
+}
+
+/// Valida las fichas de [origen] y escribe en [destino] el paquete cifrado.
+Future<void> crearPaquete(File origen, File destino, List<int> llave) async {
+  final texto = origen.readAsStringSync();
+  for (final ficha in jsonDecode(texto) as List) {
+    Ficha.desdeJson(ficha as Map<String, dynamic>);
+  }
+  destino.parent.createSync(recursive: true);
+  // Se escribe aparte y se renombra, para no entregar nunca un archivo a medias.
+  final temporal = File('${destino.path}.tmp')
+    ..writeAsBytesSync(await cifrarPaquete(utf8.encode(texto), llave));
+  temporal.renameSync(destino.path);
+}
+
 String dibujarQr(String contenido, String leyenda) {
   final imagen = QrImage(QrCode(payload: QrPayload.fromString(contenido)));
   const margen = 4;
@@ -88,10 +116,23 @@ String dibujarQr(String contenido, String leyenda) {
 
 /// Emite un pase, guarda su QR en [rutaSalida] y lo muestra en la consola.
 /// Con [modelo], la app descarga el modelo desde esa dirección al activar el pase.
-Future<void> emitirPase(SimpleKeyPair claves, int minutos, {Uri? modelo}) async {
+Future<void> emitirPase(
+  SimpleKeyPair claves,
+  int minutos, {
+  Uri? modelo,
+  Uri? contenido,
+  List<int>? llave,
+}) async {
   final emitido = DateTime.now();
   final vence = emitido.add(Duration(minutes: minutos));
-  final codigo = await firmarPase(Pase(emitido: emitido, vence: vence, modelo: modelo), claves);
+  final pase = Pase(
+    emitido: emitido,
+    vence: vence,
+    modelo: modelo,
+    contenido: contenido,
+    llave: llave ?? llaveDeLaJornada(ahora: emitido),
+  );
+  final codigo = await firmarPase(pase, claves);
 
   String hora(DateTime f) => f.toString().substring(0, 16);
   File(rutaSalida)

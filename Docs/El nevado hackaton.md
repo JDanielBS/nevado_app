@@ -1,6 +1,6 @@
 ## **Documentación inicial del proyecto**
 
-> **Decisión del 2026-11-26:** la aplicación la usa solo el guía; no se distribuye a los visitantes. Los requisitos afectados se actualizaron en esa fecha. Falta confirmar con la organización que esto cumple el reto.
+> **Decisión del 2026-11-26:** La usan guías y visitantes, con un pase temporal entregado en la estación. Reemplaza la versión de uso exclusivo del guía; las menciones "el guía" como usuario incluyen también al visitante.
 
 ### ***Problemática***
 

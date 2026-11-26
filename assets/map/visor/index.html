@@ -56,6 +56,10 @@
     .maplibregl-ctrl-bottom-left { bottom: 2px; }
     .maplibregl-ctrl-bottom-right { bottom: 0; }
     .maplibregl-ctrl-attrib { font-size: 9px; }
+
+    /* Vista incrustada en la ruta: solo el terreno, sin controles que tapen el mapa pequeño. */
+    .mini header, .mini #botones, .mini #barra, .mini #capas, .mini #ficha,
+    .mini .maplibregl-ctrl-bottom-left { display: none; }
   </style>
 </head>
 <body>
@@ -78,7 +82,8 @@
       <label><input type="checkbox" data-capas="vias-borde,vias" checked> Carreteras <span class="muestra" style="color:#33284a"></span></label>
       <label><input type="checkbox" data-capas="senderos-borde,senderos" checked> Senderos <span class="muestra" style="color:#b3261e;border-top-style:dashed"></span></label>
       <label><input type="checkbox" data-capas="limite-halo,limite" checked> Límite del parque <span class="muestra" style="color:#2f8f5b"></span></label>
-      <label><input type="checkbox" data-capas="puntos,nombres" checked> Lugares</label>
+      <label><input type="checkbox" data-capas="puntos" checked> Lugares</label>
+      <label><input type="checkbox" data-capas="nombres" checked> Nombres de lugares</label>
       <label><input type="checkbox" id="ver-curvas" checked> Curvas de nivel (solo 3D)</label>
       <label><input type="checkbox" id="ver-satelite"> Imagen satelital 2016</label>
       <div class="leyenda">
@@ -105,9 +110,11 @@
 
   <script src="lib/maplibre-gl.js"></script>
   <script>
-    // Parámetros: "app" quita el marco de celular; "plano" abre el mapa sin relieve (modo ahorro).
+    // Parámetros: "app" quita el marco de celular; "plano" abre el mapa sin relieve (modo ahorro);
+    // "mini" deja solo el terreno para el mapa incrustado en la ruta.
     const parametros = new URLSearchParams(location.search);
     if (parametros.has("app")) document.documentElement.classList.add("app");
+    if (parametros.has("mini")) document.documentElement.classList.add("mini");
     const base = new URL("../", location.href).href;
     const caja = [-75.45, 4.75, -75.20, 5.10];
     const [oeste, sur, este, norte] = caja;
@@ -238,7 +245,9 @@
     const quitarCarga = () => { el("cargando").hidden = true; };
     mapa.once("load", () => mapa.once("idle", quitarCarga));
     setTimeout(quitarCarga, 15000);
-    const visible = (capas, ver) => capas.forEach((c) => mapa.setLayoutProperty(c, "visibility", ver ? "visible" : "none"));
+    const visible = (capas, ver) => capas.forEach((c) => {
+      if (mapa.getLayer(c)) mapa.setLayoutProperty(c, "visibility", ver ? "visible" : "none");
+    });
     let relieve = true;
 
     // Iconos: se dibujan en un lienzo local, así no hacen falta imágenes ni recursos remotos.
@@ -304,6 +313,7 @@
       return [ctx.getImageData(0, 0, w, h), { pixelRatio: escala }];
     }
     mapa.once("load", async () => {
+      if (mini) return;
       const datos = await fetch(`${base}salida/puntos.geojson`).then((r) => r.json());
       const elementos = datos.features.filter((f) => f.properties.tipo in PRIORIDAD).map((f, i) => {
         const principal = f.properties.nombre === "Volcán Nevado del Ruiz";
@@ -321,7 +331,7 @@
           12.8, true],
         layout: { "icon-image": ["get", "icono"], "icon-anchor": "bottom", "icon-offset": [0, -17],
           "symbol-sort-key": ["get", "orden"],
-          visibility: document.querySelector('[data-capas^="puntos"]').checked ? "visible" : "none" } });
+          visibility: document.querySelector('[data-capas="nombres"]').checked ? "visible" : "none" } });
     });
 
     const NOMBRES = { volcano: "Volcán o cráter", alpine_hut: "Albergue", camp_site: "Campamento", hot_spring: "Termales",

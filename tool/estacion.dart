@@ -8,8 +8,12 @@ import 'package:nevado_app/core/voice/voice_file.dart';
 typedef Descargas = Map<String, File>;
 
 /// La app busca la voz junto al modelo, en la misma estación.
-Descargas descargasDeEstacion({required File apk, required File modelo, required File voz}) =>
-    {'/nevados.apk': apk, '/$nombreModelo': modelo, '/$nombreVoz': voz};
+Descargas descargasDeEstacion({File? apk, required File modelo, required File voz, required File contenido}) => {
+  '/nevados.apk': ?apk,
+  '/$nombreModelo': modelo,
+  '/$nombreVoz': voz,
+  '/contenido.nev': contenido,
+};
 
 String paginaInicio() =>
     '<!doctype html><html lang="es"><head><meta charset="utf-8">'

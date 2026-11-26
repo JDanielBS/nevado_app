@@ -85,7 +85,7 @@ class _MarcoMapa extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         child: Stack(
           children: [
-            Positioned.fill(child: MapView(flat: plano)),
+            Positioned.fill(child: MapView(flat: plano, compact: true)),
             Positioned(
               right: 8,
               top: 8,

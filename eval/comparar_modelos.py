@@ -120,7 +120,7 @@ def informe(salida, preguntas):
 
 def main():
     preguntas = json.loads((RAIZ / "eval/preguntas_modelos.json").read_text(encoding="utf-8"))
-    ruta_fichas = RAIZ / "assets/content/fichas.demo.json"
+    ruta_fichas = RAIZ / "contenido/fichas.demo.json"
     fichas = {f["id"]: f for f in json.loads(ruta_fichas.read_text(encoding="utf-8"))}
     salida = {}
     for nombre, ruta in MODELOS.items():

@@ -52,6 +52,7 @@ class ChatController extends ChangeNotifier {
   final List<Turno> turnos = [];
   bool answering = false;
   Future<void>? _preparation;
+  int _discarded = 0;
 
   /// Servidor de la estación desde el que descargar el modelo.
   Uri? origen;
@@ -162,6 +163,16 @@ class ChatController extends ChangeNotifier {
     }
   }
 
+  /// Descarta la conversación y la respuesta que se esté generando.
+  void clear() {
+    if (turnos.isEmpty && reply == null && answer.isEmpty && !answering) return;
+    _discarded++;
+    reply = null;
+    answer = '';
+    turnos.clear();
+    notifyListeners();
+  }
+
   /// Orden de decisión: reglas de seguridad, fichas y, solo si no hay nada, el modelo.
   ///
   /// Con [batterySaver] activo el modelo no se usa.
@@ -188,9 +199,11 @@ class ChatController extends ChangeNotifier {
     reply = null;
     answering = true;
     notifyListeners();
+    final generation = _discarded;
     try {
       final prompt = 'Responde en español, en máximo 3 frases.\n\n$text';
       await for (final part in engine.generate(prompt)) {
+        if (generation != _discarded) break;
         answer += part;
         turno.generado = answer;
         notifyListeners();

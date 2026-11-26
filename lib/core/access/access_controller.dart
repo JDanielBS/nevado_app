@@ -71,8 +71,11 @@ class AccessController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> iniciar({Duration intervalo = const Duration(seconds: 1)}) async {
     final guardado = await store.leer();
     if (guardado != null) {
-      _codigo = guardado.codigo;
-      _pase = await leerPase(guardado.codigo, clavePublica);
+      final codigo = guardado.codigo;
+      _codigo = codigo;
+      _pase = codigo == null
+          ? Pase(emitido: guardado.emitido, vence: guardado.vence)
+          : await leerPase(codigo, clavePublica);
       _ultimaHora = guardado.ultimaHora;
       _ultimaMarca = _cronometro();
     }
@@ -112,7 +115,13 @@ class AccessController extends ChangeNotifier with WidgetsBindingObserver {
     } else {
       estado = EstadoAcceso.activo;
     }
-    final cambio = estado != _estado;
+    var cambio = estado != _estado;
+    // Al vencer se destruye la llave: queda solo el registro de fechas.
+    if (estado == EstadoAcceso.vencido && _codigo != null) {
+      _codigo = null;
+      _pase = pase.sinSecretos();
+      cambio = true;
+    }
     _publicar(estado, estado == EstadoAcceso.activo ? restante : Duration.zero);
 
     final guardado = _ultimoGuardado;
@@ -120,10 +129,12 @@ class AccessController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> _guardar(DateTime hora) async {
-    final codigo = _codigo;
-    if (codigo == null) return;
+    final pase = _pase;
+    if (pase == null) return;
     _ultimoGuardado = _cronometro();
-    await store.guardar(PaseGuardado(codigo, hora));
+    await store.guardar(
+      PaseGuardado(codigo: _codigo, ultimaHora: hora, emitido: pase.emitido, vence: pase.vence),
+    );
   }
 
   /// Valida un código escaneado y, si sirve, habilita la app.
@@ -154,6 +165,8 @@ class AccessController extends ChangeNotifier with WidgetsBindingObserver {
     _ultimaMarca = _cronometro();
     await _guardar(_ultimaHora ?? ahora);
     await comprobar();
+    // Un pase distinto puede dejar el mismo estado y tiempo restante: se avisa igualmente.
+    notifyListeners();
     return ResultadoPase.aceptado;
   }
 
