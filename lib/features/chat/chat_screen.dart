@@ -4,13 +4,18 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
 import '../../core/ai/edge_llm_engine.dart';
+import '../../core/ai/knowledge_base.dart';
 import '../../core/ui/palette.dart';
 import '../../core/ui/widgets.dart';
 import 'chat_controller.dart';
+import 'rag_check.dart';
 import 'reply_view.dart';
 
 /// Controlador único de la app: la descarga sigue aunque se salga de la pantalla.
 final chatDeLaApp = ChatController(EdgeLlmEngine());
+
+/// Búsqueda por palabras y por significado sobre el contenido que tenga la app en ese momento.
+final conocimiento = KnowledgeBase();
 
 /// Preguntas sugeridas bajo la conversación.
 const preguntasSugeridas = ['¿Puedo ir al cráter?', 'Me duele la cabeza', '¿Puedo llevarme una roca?'];
@@ -36,21 +41,41 @@ class _ChatScreenState extends State<ChatScreen> {
     // Después del primer cuadro: start() puede notificar de inmediato.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // En modo ahorro no se carga el modelo.
-      if (mounted && !_batterySaver) _chat.start();
+      if (!mounted || _batterySaver) return;
+      // Pruebas (controlador propio): sin modelo de embeddings.
+      final indice = context.getInheritedWidgetOfExactType<AppScope>()?.indice;
+      if (widget.controller == null && indice != null) unawaited(conocimiento.indexar(indice));
+      _chat.start();
     });
   }
 
   bool get _batterySaver => context.getInheritedWidgetOfExactType<AppScope>()?.settings.ahorroActivo ?? false;
 
   void _ask([String? texto]) {
+    unawaited(_preguntar(texto ?? _input.text));
+    if (texto == null) _input.clear();
+  }
+
+  Future<void> _preguntar(String pregunta) async {
     final scope = context.getInheritedWidgetOfExactType<AppScope>();
-    _chat.ask(
-      texto ?? _input.text,
+    final indice = scope?.indice;
+    if (pregunta.trim() == '/prueba' && indice != null) {
+      await conocimiento.indexar(indice);
+      _chat.informar(pregunta, await autoprueba(conocimiento, indice));
+      return;
+    }
+    // En pruebas (controlador propio) solo por palabras: el chat busca en el índice.
+    final fragmentos = widget.controller == null && indice != null && !_chat.answering
+        ? await conocimiento.buscar(indice, pregunta)
+        : null;
+    if (!mounted) return;
+    await _chat.ask(
+      pregunta,
       emergencia: scope?.emergencia ?? const [],
-      indice: scope?.indice,
+      indice: indice,
+      fragmentos: fragmentos,
       batterySaver: _batterySaver,
     );
-    if (texto == null) _input.clear();
   }
 
   @override
@@ -70,13 +95,14 @@ class _ChatScreenState extends State<ChatScreen> {
     return Material(
       type: MaterialType.transparency,
       child: ListenableBuilder(
-        listenable: _chat,
+        listenable: Listenable.merge([_chat, conocimiento.estado]),
         builder: (context, _) {
           final estado = [
             if (saver)
               const Linea('Modo ahorro: respondo con el texto de la guía, sin modelo de IA.')
             else
               ..._content(),
+            if (conocimiento.estado.value.isNotEmpty) Linea(conocimiento.estado.value),
             if (_chat.error != null) Linea(_chat.error!, color: Colores.aviso, negrita: true),
           ];
           final turnos = _chat.turnos;

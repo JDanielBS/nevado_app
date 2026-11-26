@@ -29,6 +29,7 @@ class FakeEngine implements LlmEngine {
   /// Falla solo la descarga desde internet (sin origen).
   bool failInternet = false;
   String? lastPrompt;
+  List<String> salida = ['Hola ', 'mundo'];
   final origenes = <Uri?>[];
   bool failGenerate = false;
   bool corrupt = false;
@@ -71,7 +72,7 @@ class FakeEngine implements LlmEngine {
   @override
   Stream<String> generate(String prompt) {
     lastPrompt = prompt;
-    return failGenerate ? Stream.error(Exception('motor')) : Stream.fromIterable(['Hola ', 'mundo']);
+    return failGenerate ? Stream.error(Exception('motor')) : Stream.fromIterable(salida);
   }
 }
 
@@ -243,6 +244,27 @@ void main() {
       expect(controller.reply?.tipo, TipoRespuesta.respuesta);
       expect(controller.reply?.fuentes.single, startsWith('Guion'));
       expect(engine.lastPrompt, isNull);
+    });
+
+    test('si el modelo se abstiene no muestra fuentes ni la marca', () async {
+      final (controller, engine) = await ready();
+      engine.salida = ['SIN_', 'RESPUESTA.\nFuente: Guía'];
+      final mostrado = <String>[];
+      controller.addListener(() => mostrado.add(controller.turnos.last.generado));
+      await preguntar(controller, '¿Qué es el frailejón?');
+      expect(engine.lastPrompt, contains('SIN_RESPUESTA'));
+      expect(controller.reply?.tipo, TipoRespuesta.sinInformacion);
+      expect(controller.reply?.fuentes, isEmpty);
+      expect(controller.turnos.last.fuentes, isEmpty);
+      expect(controller.answer, isEmpty);
+      expect(mostrado, everyElement(isEmpty));
+    });
+
+    test('usa los fragmentos que entrega la búsqueda híbrida', () async {
+      final (controller, engine) = await ready();
+      final elegido = indiceDelProyecto.fragmentos.firstWhere((f) => f.ruta.contains('Kumanday'));
+      await controller.ask('pregunta sin palabras clave', fragmentos: [elegido]);
+      expect(engine.lastPrompt, contains(elegido.ruta));
     });
 
     test('sin modelo responde con el fragmento', () async {

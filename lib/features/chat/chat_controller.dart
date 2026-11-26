@@ -3,7 +3,11 @@ import 'package:flutter/foundation.dart';
 import '../../core/ai/llm_engine.dart';
 import '../../core/assistant/responder.dart';
 import '../../core/content/card.dart';
+import '../../core/content/seccion.dart';
 import '../../core/search/search.dart';
+
+/// Lo que el prompt pide responder cuando los documentos no alcanzan (ver `armarPrompt`).
+const marcaSinRespuesta = 'SIN_RESPUESTA';
 
 /// Una pregunta del visitante y lo que se le respondió.
 class Turno {
@@ -192,15 +196,25 @@ class ChatController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Agrega un mensaje de la propia app a la conversación (por ejemplo, el resultado de `/prueba`).
+  void informar(String pregunta, String texto) {
+    turnos.add(Turno(pregunta)..generado = texto);
+    notifyListeners();
+  }
+
   /// Orden de decisión: reglas fijas (emergencia y medicamentos), búsqueda en la guía y el modelo, que
   /// responde solo con los fragmentos recuperados (RAG). Sin fragmentos no se llama al modelo: se dice
-  /// que no hay información.
+  /// que no hay información. Si el modelo responde [marcaSinRespuesta], también.
+  ///
+  /// [fragmentos] los entrega la búsqueda híbrida de la pantalla; si se omiten, se buscan en [indice]
+  /// solo por palabras.
   ///
   /// Con [batterySaver] activo, o sin modelo, se muestra el fragmento más relevante tal cual.
   Future<void> ask(
     String question, {
     List<Ficha> emergencia = const [],
     IndiceGuia? indice,
+    List<Fragmento>? fragmentos,
     bool batterySaver = false,
   }) async {
     final text = question.trim();
@@ -209,10 +223,10 @@ class ChatController extends ChangeNotifier {
     error = phase == ChatPhase.ready ? null : error;
     final turno = Turno(text);
     turnos.add(turno);
-    final fragmentos = recuperar(indice ?? IndiceGuia.vacio, text);
+    final recuperados = fragmentos ?? recuperar(indice ?? IndiceGuia.vacio, text);
     final local = respuestaFija(text, emergencia) ??
-        (fragmentos.isEmpty || phase != ChatPhase.ready || batterySaver
-            ? respuestaConFragmentos(fragmentos)
+        (recuperados.isEmpty || phase != ChatPhase.ready || batterySaver
+            ? respuestaConFragmentos(recuperados)
             : null);
     if (local != null) {
       reply = local;
@@ -221,19 +235,33 @@ class ChatController extends ChangeNotifier {
       return;
     }
     turno
-      ..fuentes = citas(fragmentos)
-      ..verificada = fragmentos.every((f) => f.verificado);
+      ..fuentes = citas(recuperados)
+      ..verificada = recuperados.every((f) => f.verificado);
     reply = null;
     answering = true;
     notifyListeners();
     final generation = _discarded;
     try {
-      final prompt = armarPrompt(text, fragmentos);
+      final prompt = armarPrompt(text, recuperados);
+      final reloj = Stopwatch()..start();
       await for (final part in engine.generate(prompt)) {
         if (generation != _discarded) break;
+        if (answer.isEmpty) debugPrint('RAG primera palabra ms=${reloj.elapsedMilliseconds} prompt=${prompt.length}');
         answer += part;
-        turno.generado = answer;
+        // Mientras pueda ser la marca de abstención, no se muestra.
+        final inicio = answer.trimLeft();
+        final esMarca = marcaSinRespuesta.startsWith(inicio) || inicio.contains(marcaSinRespuesta);
+        turno.generado = esMarca ? '' : answer;
         notifyListeners();
+      }
+      if (generation == _discarded && answer.contains(marcaSinRespuesta)) {
+        // Abstención: mensaje fijo de la app, sin fuentes.
+        answer = '';
+        turno
+          ..generado = ''
+          ..fuentes = const [];
+        reply = turno.respuesta = sinInformacion;
+        debugPrint('RAG total ms=${reloj.elapsedMilliseconds} abstención');
       }
     } catch (e) {
       debugPrint('Asistente: $e');

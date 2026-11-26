@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_edge_ai/flutter_edge_ai.dart';
 import 'package:flutter_edge_ai_litertlm/flutter_edge_ai_litertlm.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'device_support.dart';
 import 'llm_engine.dart';
@@ -13,9 +14,15 @@ import 'model_integrity.dart';
 class EdgeLlmEngine implements LlmEngine {
   // Solo para desarrollo: el token queda dentro del APK.
   static const _token = String.fromEnvironment('HUGGINGFACE_TOKEN');
+  static Future<void>? _initialized;
+
+  /// Carpeta externa de la app (`Android/data/<paquete>/files`), a la que se copian modelos por cable.
+  /// Depende del paquete: la app del guía usa `co.nevados.app.guia`.
+  static Future<String> carpetaModelos() async =>
+      (_carpeta ??= (await getExternalStorageDirectory() ?? await getApplicationSupportDirectory()).path);
+  static String? _carpeta;
 
   final _variant = LiteRtLmModels.gemma3_1bIt.q4Ekv4096;
-  Future<void>? _initialized;
   InferenceModel? _model;
 
   @override
@@ -38,14 +45,29 @@ class EdgeLlmEngine implements LlmEngine {
     );
   }
 
-  Future<void> _init() => _initialized ??= FlutterEdgeAi.initialize(
+  /// Una sola inicialización del paquete, compartida con el buscador por significado.
+  static Future<void> iniciarPaquete() => _initialized ??= FlutterEdgeAi.initialize(
     inferenceEngines: const [LiteRtLmEngine()],
-    huggingFaceToken: canDownload ? _token : null,
+    embeddingBackends: const [LiteRtEmbeddingBackend()],
+    huggingFaceToken: _token.isNotEmpty ? _token : null,
   );
+
+  Future<void> _init() => iniciarPaquete();
+
+  /// Instala el modelo si se copió por USB a la carpeta externa de la app.
+  Future<void> _instalarCopiaLocal() async {
+    final copia = File('${await carpetaModelos()}/${_variant.file.installFilename}');
+    if (!await copia.exists()) return;
+    if (await FlutterEdgeAi.isModelInstalled(_variant.file.installFilename) && FlutterEdgeAi.hasActiveModel()) return;
+    await FlutterEdgeAi.installModel(modelType: _variant.modelType, fileType: ModelFileType.litertlm)
+        .fromFile(copia.path)
+        .install();
+  }
 
   @override
   Future<bool> isInstalled() async {
     await _init();
+    await _instalarCopiaLocal();
     // También debe estar marcado como activo; el paquete lo recuerda entre reinicios.
     if (!await FlutterEdgeAi.isModelInstalled(_variant.file.installFilename) ||
         !FlutterEdgeAi.hasActiveModel()) {

@@ -63,6 +63,9 @@ class IndiceGuia {
 
   int get cantidad => _entradas.length;
 
+  /// Fragmentos indexados, en orden de la guía.
+  List<Fragmento> get fragmentos => [for (final e in _entradas) e.fragmento];
+
   List<Resultado> buscar(String consulta, {int max = fragmentosPorPregunta, int umbral = umbralMinimo}) {
     final palabras = tokenizar(consulta).toSet();
     if (palabras.isEmpty) return [];

@@ -240,10 +240,12 @@ class Fragmento {
   final bool verificado;
 }
 
-/// Fragmentos con fuente de todas las secciones. Los apartados sin fuente se omiten.
-List<Fragmento> fragmentar(Iterable<SeccionGuia> secciones) => [
+/// Fragmentos con fuente de todas las secciones. Se omiten los apartados sin fuente y los temas vencidos
+/// (`Vence:` anterior a [hoy]).
+List<Fragmento> fragmentar(Iterable<SeccionGuia> secciones, {DateTime? hoy}) => [
   for (final s in secciones)
     for (final t in s.temas)
+      if (!_vencido(t, hoy ?? DateTime.now()))
       for (final (nivel, apartados) in [('Ficha técnica', t.ficha), ('Detalle', t.detalle)])
         for (final a in apartados)
           if (_lleno(a.fuente) && a.texto.trim().isNotEmpty)
@@ -260,6 +262,11 @@ List<Fragmento> fragmentar(Iterable<SeccionGuia> secciones) => [
               verificado: s.verificada,
             ),
 ];
+
+bool _vencido(Tema t, DateTime hoy) {
+  final vence = t.vence == null ? null : DateTime.tryParse(t.vence!);
+  return vence != null && vence.isBefore(DateTime(hoy.year, hoy.month, hoy.day));
+}
 
 /// Quita las marcas de imagen y video y deja su descripción, que sí sirve para buscar.
 String _textoPlano(String texto) => texto

@@ -6,6 +6,7 @@ import 'package:nevado_app/core/assistant/responder.dart';
 import 'package:nevado_app/core/content/card.dart';
 import 'package:nevado_app/core/content/contenido_guia.dart';
 import 'package:nevado_app/core/content/seccion.dart';
+import 'package:nevado_app/core/search/hybrid_retriever.dart';
 import 'package:nevado_app/core/search/search.dart';
 
 /// Ejemplo de `Docs/estrategia-informacion.md`.
@@ -174,6 +175,37 @@ void main() {
       final largo = Fragmento(ruta: 'A', descripcion: '', estaciones: const [], texto: 'palabra ' * 2000, fuente: 'F');
       // Aproximación: 4 caracteres por token en español.
       expect(armarPrompt('pregunta', [largo, largo, largo]).length / 4, lessThan(1000));
+    });
+  });
+
+  group('de main: vencimiento y búsqueda híbrida', () {
+    test('excluye temas vencidos y conserva los vigentes', () {
+      final s = leerSeccion('avisos.md', '''
+# Avisos
+## Vencido
+Vence: 2026-11-01
+### Ficha técnica
+Texto viejo.
+
+Fuente: UTON, 2026-10-01
+
+## Vigente
+Vence: 2026-12-31
+### Ficha técnica
+Texto nuevo.
+
+Fuente: UTON, 2026-11-26
+''');
+      final f = fragmentar([s], hoy: DateTime(2026, 11, 26));
+      expect(f.map((x) => x.texto), ['Texto nuevo.']);
+    });
+
+    test('la fusión prioriza lo que coincide por significado y por palabras', () {
+      final f = fragmentar(seccionesDelProyecto()).take(4).toList();
+      final r = fusionar(semanticos: [f[2], f[0]], palabras: [f[0], f[1]], limite: 3);
+      expect(r.first, f[0]);
+      expect(r, hasLength(3));
+      expect(fusionar(semanticos: const [], palabras: const [], limite: 3), isEmpty);
     });
   });
 }
