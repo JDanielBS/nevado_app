@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show Factory;
+import 'package:flutter/gestures.dart' show EagerGestureRecognizer, OneSequenceGestureRecognizer;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:webview_flutter/webview_flutter.dart';
@@ -94,11 +96,15 @@ class _MapViewState extends State<MapView> {
   @override
   Widget build(BuildContext context) {
     if (_error != null || !_disponible) {
-      return Center(child: Padding(padding: const EdgeInsets.all(Espacio.l), child: Text(_error!)));
+      return Center(child: Padding(padding: const EdgeInsets.all(Espacio.l), child: Text(_error!, textAlign: TextAlign.center)));
     }
     return Stack(
       children: [
-        WebViewWidget(controller: _controlador),
+        // El mapa toma los gestos dentro de su marco aunque esté dentro de una lista desplazable.
+        WebViewWidget(
+          controller: _controlador,
+          gestureRecognizers: {Factory<OneSequenceGestureRecognizer>(EagerGestureRecognizer.new)},
+        ),
         if (_cargando) const Center(child: CircularProgressIndicator()),
       ],
     );

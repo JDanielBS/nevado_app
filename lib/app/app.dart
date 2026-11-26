@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/content/card.dart';
 import '../core/settings/settings.dart';
-import '../features/home/home_screen.dart';
+import 'shell.dart';
 import 'app_scope.dart';
 import 'theme.dart';
 
@@ -25,7 +25,7 @@ class _NevadoAppState extends State<NevadoApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Nevados',
+      title: 'Kumanday',
       theme: appTheme,
       // El ámbito va por encima del navegador para que todas las pantallas lo vean.
       builder: (context, child) => AppScope(
@@ -42,7 +42,7 @@ class _NevadoAppState extends State<NevadoApp> {
           ),
         ),
       ),
-      home: const HomeScreen(),
+      home: const KumandayShell(),
     );
   }
 }

@@ -37,11 +37,14 @@ El token queda dentro del APK. No compartas ni publiques un APK compilado así.
 
 | Función | Dónde |
 |---|---|
-| Emergencias y fichas | `lib/features/emergency/`, `lib/features/cards/`, `assets/content/` |
+| Estructura de pantallas (diseño "Kumanday") | `lib/app/shell.dart`: encabezado, franja de seguridad y navegación Ruta · Guía IA · Seguridad |
+| Ruta, estaciones y fichas por estación | `lib/features/route/`, `lib/features/station/`, `lib/core/route/estaciones.dart` |
+| Fotos de cada estación (paisaje, flora, fauna) | `assets/imagenes/` (ver `LEEME.md`); el paisaje también es la marca de agua |
+| Paleta por estación y componentes | `lib/core/ui/palette.dart`, `lib/core/ui/widgets.dart`, fuentes en `fonts/` |
+| Seguridad, emergencias y fichas | `lib/features/safety/`, `assets/content/` |
 | Reglas de seguridad y búsqueda local | `lib/core/safety/`, `lib/core/search/`, `lib/core/assistant/` |
-| Ubicación GPS bajo demanda | `lib/features/location/`, `lib/core/location/` |
 | Mapa | `lib/features/map/`, `assets/map/`, `maps/` |
-| Modo ahorro y tamaño de texto | `lib/core/settings/` |
+| Modo ahorro y tamaño de texto (en "Acerca") | `lib/core/settings/`, `lib/features/about/` |
 | Comparación de modelos | `eval/` |
 
 El asistente decide en este orden: reglas de emergencia y de límites, fichas y, solo si no hay nada, el modelo
