@@ -5,7 +5,7 @@ import '../../core/settings/settings.dart';
 import '../../core/ui/palette.dart';
 import '../../core/ui/widgets.dart';
 
-/// Tamaño de texto y modo ahorro de batería.
+/// Tamaño de texto, voz y modo ahorro de batería.
 class SettingsCard extends StatelessWidget {
   const SettingsCard({super.key, required this.settings});
 
@@ -33,6 +33,14 @@ class SettingsCard extends StatelessWidget {
                   onSelected: (_) => settings.escala = scale.key,
                 ),
             ],
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Respuestas con voz'),
+            subtitle: const Text('La Guía IA lee en voz alta lo que escribe el modelo. El modo ahorro la apaga.'),
+            value: settings.vozActiva,
+            activeTrackColor: TemaScope.of(context).acento,
+            onChanged: (value) => settings.vozActiva = value,
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,

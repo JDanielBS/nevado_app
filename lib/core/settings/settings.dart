@@ -2,18 +2,43 @@ import 'dart:async';
 
 import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/widgets.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'battery_saver.dart';
 
 /// Escalas de texto disponibles.
 final escalasTexto = <double, String>{1: 'Normal', 1.25: 'Grande', 1.5: 'Muy grande'};
 
-/// Estado global de accesibilidad y energía.
-/// Los ajustes no se guardan al cerrar la app (pendiente).
+/// Dónde se guardan los ajustes que se conservan al cerrar la app.
+abstract interface class AjustesStore {
+  Future<bool?> leerVozActiva();
+  Future<void> guardarVozActiva(bool valor);
+}
+
+/// Almacenamiento local del teléfono.
+class PreferencesAjustesStore implements AjustesStore {
+  static const _claveVoz = 'ajustes.voz';
+
+  // Se crea al usarlo: en pruebas puede no existir el almacenamiento.
+  late final _preferencias = SharedPreferencesAsync();
+
+  @override
+  Future<bool?> leerVozActiva() => _preferencias.getBool(_claveVoz);
+
+  @override
+  Future<void> guardarVozActiva(bool valor) => _preferencias.setBool(_claveVoz, valor);
+}
+
+/// Estado global de accesibilidad, voz y energía.
+/// Solo la voz se guarda al cerrar la app; el resto está pendiente.
 class Ajustes extends ChangeNotifier with WidgetsBindingObserver {
-  Ajustes({Battery? bateria}) : _bateria = bateria ?? Battery();
+  Ajustes({Battery? bateria, AjustesStore? store})
+      : _bateria = bateria ?? Battery(),
+        _store = store ?? PreferencesAjustesStore();
 
   final Battery _bateria;
+  final AjustesStore _store;
+  bool _vozActiva = true;
   Timer? _reloj;
 
   double _escala = 1;
@@ -25,6 +50,32 @@ class Ajustes extends ChangeNotifier with WidgetsBindingObserver {
 
   double get escala => _escala;
   double? get nivelBateria => _nivelBateria;
+
+  /// Respuestas con audio en la Guía IA. El modo ahorro las apaga igualmente.
+  bool get vozActiva => _vozActiva;
+
+  set vozActiva(bool valor) {
+    _vozActiva = valor;
+    notifyListeners();
+    unawaited(_guardarVoz(valor));
+  }
+
+  Future<void> _guardarVoz(bool valor) async {
+    try {
+      await _store.guardarVozActiva(valor);
+    } catch (e) {
+      debugPrint('Ajustes: $e');
+    }
+  }
+
+  Future<void> leerPreferencias() async {
+    try {
+      _vozActiva = await _store.leerVozActiva() ?? true;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Ajustes: $e');
+    }
+  }
 
   ({bool activo, MotivoAhorro? motivo}) get _ahorro =>
       calcularAhorro(nivel: _nivelBateria, ahorroSistema: _ahorroSistema, preferencia: _preferenciaAhorro);
@@ -48,6 +99,7 @@ class Ajustes extends ChangeNotifier with WidgetsBindingObserver {
 
   void iniciar() {
     WidgetsBinding.instance.addObserver(this);
+    unawaited(leerPreferencias());
     leerBateria();
     // Android avisa los cambios de nivel con poca frecuencia: se relee cada minuto.
     _reloj = Timer.periodic(const Duration(minutes: 1), (_) => leerBateria());

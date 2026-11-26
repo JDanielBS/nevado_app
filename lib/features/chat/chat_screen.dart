@@ -4,50 +4,85 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
 import '../../core/ai/edge_llm_engine.dart';
+import '../../core/content/card.dart';
 import '../../core/ui/palette.dart';
 import '../../core/ui/widgets.dart';
+import '../../core/voice/device_tts.dart';
 import 'chat_controller.dart';
 import 'reply_view.dart';
+import 'voice_chat_controller.dart';
+import 'voice_controls.dart';
 
 /// Controlador único de la app: la descarga sigue aunque se salga de la pantalla.
 final chatDeLaApp = ChatController(EdgeLlmEngine());
+
+/// Voz de la Guía IA, sobre el mismo asistente.
+final chatDeVozDeLaApp = VoiceChatController(chatDeLaApp, crearMotorDeVoz());
 
 /// Preguntas sugeridas bajo la conversación.
 const preguntasSugeridas = ['¿Puedo ir al cráter?', 'Me duele la cabeza', '¿Puedo llevarme una roca?'];
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key, this.controller});
+  const ChatScreen({super.key, this.controller, this.voz});
 
-  /// Solo se pasa en pruebas. La app usa uno compartido.
+  /// Solo se pasan en pruebas. La app usa unos compartidos; con solo [controller] no hay voz.
   final ChatController? controller;
+  final VoiceChatController? voz;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  late final ChatController _chat = widget.controller ?? chatDeLaApp;
+  late final VoiceChatController? _voz = widget.voz ?? (widget.controller == null ? chatDeVozDeLaApp : null);
+  late final ChatController _chat = widget.controller ?? _voz?.chat ?? chatDeLaApp;
   final _input = TextEditingController();
+
+  /// La voz está permitida: activada en ajustes y sin modo ahorro.
+  bool? _vozPermitida;
 
   @override
   void initState() {
     super.initState();
-    _chat.enPantalla = true;
-    // Después del primer cuadro: start() puede notificar de inmediato.
+    // Después del primer cuadro: start() puede notificar de inmediato, y si se viene de
+    // otra pantalla del asistente, esta ya habrá soltado el modelo.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _chat.enPantalla = true;
       // En modo ahorro no se carga el modelo.
-      if (mounted && !_batterySaver) _chat.start();
+      if (!_batterySaver) _chat.start();
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final voz = _voz;
+    if (voz == null) return;
+    final settings = AppScope.maybeOf(context)?.settings;
+    final permitida = settings == null || (settings.vozActiva && !settings.ahorroActivo);
+    if (permitida == _vozPermitida) return;
+    _vozPermitida = permitida;
+    // Después del cuadro: ambos pueden notificar de inmediato.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      voz.enPantalla = true;
+      // Sin permiso no se carga el modelo de voz, y si estaba cargado se libera.
+      unawaited(_vozPermitida! ? voz.start() : voz.release());
     });
   }
 
   bool get _batterySaver => context.getInheritedWidgetOfExactType<AppScope>()?.settings.ahorroActivo ?? false;
 
   void _ask([String? texto]) {
-    _chat.ask(
-      texto ?? _input.text,
-      cards: context.getInheritedWidgetOfExactType<AppScope>()?.cards ?? const [],
-      batterySaver: _batterySaver,
-    );
+    final pregunta = texto ?? _input.text;
+    final cards = context.getInheritedWidgetOfExactType<AppScope>()?.cards ?? const <Ficha>[];
+    final voz = _voz;
+    if (voz == null) {
+      _chat.ask(pregunta, cards: cards, batterySaver: _batterySaver);
+    } else {
+      voz.ask(pregunta, cards: cards, batterySaver: _batterySaver, permitida: _vozPermitida ?? false);
+    }
     if (texto == null) _input.clear();
   }
 
@@ -57,6 +92,12 @@ class _ChatScreenState extends State<ChatScreen> {
     // Al salir se recupera la memoria del modelo; vuelve a cargarse al entrar.
     _chat.enPantalla = false;
     unawaited(_chat.release());
+    final voz = _voz;
+    if (voz != null) {
+      voz.enPantalla = false;
+      // Sin avisar mientras se desmonta la pantalla.
+      scheduleMicrotask(() => unawaited(voz.release()));
+    }
     super.dispose();
   }
 
@@ -68,9 +109,10 @@ class _ChatScreenState extends State<ChatScreen> {
     return Material(
       type: MaterialType.transparency,
       child: ListenableBuilder(
-        listenable: _chat,
+        listenable: Listenable.merge([_chat, _voz]),
         builder: (context, _) {
           final estado = [
+            if (_voz case final voz?) PanelDeVoz(voz: voz, permitida: _vozPermitida ?? false),
             if (saver)
               const Linea('Modo ahorro: respondo solo con las fichas, sin modelo de IA.')
             else
@@ -111,8 +153,11 @@ class _ChatScreenState extends State<ChatScreen> {
                         Caja(
                           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, spacing: 8, children: estado),
                         ),
-                      for (final (i, turno) in turnos.indexed.toList().reversed)
+                      for (final (i, turno) in turnos.indexed.toList().reversed) ...[
+                        // La lista está invertida: el pie va antes para quedar debajo.
+                        if (_voz case final voz? when _vozPermitida ?? false) BotonDeVoz(voz: voz, turno: turno),
                         TurnoView(turno: turno, respondiendo: _chat.answering && i == turnos.length - 1),
+                      ],
                       const Burbuja(texto: 'Hola. Pregúntame sobre lo que observas en la ruta.'),
                     ],
                   ),

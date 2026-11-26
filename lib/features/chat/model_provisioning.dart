@@ -7,9 +7,16 @@ import '../../core/access/pass.dart';
 import '../../core/ui/palette.dart';
 import '../../core/ui/widgets.dart';
 import 'chat_controller.dart';
+import 'voice_chat_controller.dart';
 
-/// Al activar un pase que trae la dirección del modelo, lo descarga si falta.
-void vincularModeloConPase(AccessController access, ChatController chat) {
+/// Descarga de la estación el modelo y, cuando está listo, la voz.
+Future<void> descargarDeEstacion(Uri origen, ChatController chat, VoiceChatController? voz) async {
+  await chat.provision(origen);
+  if (chat.instalado) await voz?.provision(origen);
+}
+
+/// Al activar un pase que trae la dirección del modelo, descarga lo que falte.
+void vincularModeloConPase(AccessController access, ChatController chat, [VoiceChatController? voz]) {
   Pase? atendido;
   access.addListener(() {
     final pase = access.pase;
@@ -17,7 +24,7 @@ void vincularModeloConPase(AccessController access, ChatController chat) {
     // Volver a escanear crea otro objeto: así se puede reintentar con el mismo QR.
     if (!access.activo || origen == null || identical(pase, atendido)) return;
     atendido = pase;
-    unawaited(chat.provision(origen));
+    unawaited(descargarDeEstacion(origen, chat, voz));
   });
 }
 
@@ -30,7 +37,16 @@ class ModelScope extends InheritedNotifier<ChatController> {
       context.dependOnInheritedWidgetOfExactType<ModelScope>()?.notifier;
 }
 
-/// Avance de la descarga del modelo. No ocupa espacio si no se pidió ninguna.
+/// Da acceso al estado de la voz desde la pantalla de inicio.
+class VoiceScope extends InheritedNotifier<VoiceChatController> {
+  const VoiceScope({super.key, required VoiceChatController controller, required super.child})
+    : super(notifier: controller);
+
+  static VoiceChatController? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<VoiceScope>()?.notifier;
+}
+
+/// Avance de la descarga del modelo y de la voz. No ocupa espacio si no se pidió ninguna.
 class ModelStatus extends StatelessWidget {
   const ModelStatus({super.key});
 
@@ -40,9 +56,23 @@ class ModelStatus extends StatelessWidget {
     final origen = chat?.origen;
     if (chat == null || origen == null) return const SizedBox.shrink();
 
+    final voz = VoiceScope.maybeOf(context);
+    // Con el modelo listo todavía puede faltar la voz.
+    final faltaVoz = chat.instalado && voz != null && !voz.instalada && voz.phase != VoicePhase.unsupported;
     final reason = chat.phase == ChatPhase.unsupported ? chat.error : null;
-    final failed = chat.error != null && (chat.phase == ChatPhase.noModel || chat.phase == ChatPhase.failed);
-    final message = switch (chat.phase) {
+    final failed = faltaVoz
+        ? voz.error != null && (voz.phase == VoicePhase.noModel || voz.phase == VoicePhase.failed)
+        : chat.error != null && (chat.phase == ChatPhase.noModel || chat.phase == ChatPhase.failed);
+    final progreso = faltaVoz
+        ? (voz.phase == VoicePhase.downloading ? voz.progress : null)
+        : (chat.phase == ChatPhase.downloading ? chat.progress : null);
+    final message = faltaVoz
+        ? (failed
+            ? voz.error!
+            : progreso != null
+            ? 'Descargando la voz $progreso %. No salgas de la red de la estación.'
+            : 'Preparando la voz. No salgas de la red de la estación.')
+        : switch (chat.phase) {
       ChatPhase.downloading => 'Descargando ${chat.progress} %. No salgas de la red de la estación.',
       ChatPhase.loading => 'Comprobando el modelo…',
       _ when reason != null => reason,
@@ -57,10 +87,13 @@ class ModelStatus extends StatelessWidget {
         children: [
           const TituloCaja('Modelo del asistente'),
           Linea(message, tamano: 16),
-          if (chat.phase == ChatPhase.downloading) LinearProgressIndicator(value: chat.progress / 100),
+          if (progreso != null) LinearProgressIndicator(value: progreso / 100),
           if (failed) ...[
             const SizedBox(height: Espacio.s),
-            FilledButton(onPressed: () => chat.provision(origen), child: const Text('Reintentar descarga')),
+            FilledButton(
+              onPressed: () => descargarDeEstacion(origen, chat, voz),
+              child: const Text('Reintentar descarga'),
+            ),
           ],
         ],
       ),

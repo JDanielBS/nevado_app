@@ -6,12 +6,13 @@ import '../core/settings/settings.dart';
 import '../features/access/access_scope.dart';
 import '../features/chat/chat_controller.dart';
 import '../features/chat/model_provisioning.dart';
+import '../features/chat/voice_chat_controller.dart';
 import 'shell.dart';
 import 'app_scope.dart';
 import 'theme.dart';
 
 class NevadoApp extends StatefulWidget {
-  const NevadoApp({super.key, this.cards = const [], this.settings, this.access, this.model});
+  const NevadoApp({super.key, this.cards = const [], this.settings, this.access, this.model, this.voice});
 
   /// Contenido de la guía incluido en la instalación.
   final List<Ficha> cards;
@@ -25,6 +26,9 @@ class NevadoApp extends StatefulWidget {
   /// Estado del modelo, para mostrar la descarga en el inicio.
   final ChatController? model;
 
+  /// Estado de la voz, para mostrar su descarga junto a la del modelo.
+  final VoiceChatController? voice;
+
   @override
   State<NevadoApp> createState() => _NevadoAppState();
 }
@@ -33,6 +37,8 @@ class _NevadoAppState extends State<NevadoApp> {
   late final Ajustes _settings = widget.settings ?? Ajustes();
 
   Widget _conAcceso(Widget child) {
+    final voice = widget.voice;
+    if (voice != null) child = VoiceScope(controller: voice, child: child);
     final model = widget.model;
     if (model != null) child = ModelScope(controller: model, child: child);
     final access = widget.access;
