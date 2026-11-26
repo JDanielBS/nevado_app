@@ -1,6 +1,6 @@
 # Plan: Guía de páramo offline
 
-> **Decisión del 2026-11-26:** la aplicación la usa solo el guía; no se distribuye a los visitantes.
+> **Decisión del 2026-11-26:** La usan guías y visitantes, con un pase temporal entregado en la estación.
 
 ## Objetivo
 Crear una app móvil en español que funcione sin internet en una zona de páramo acotada. El MVP debe mostrar un mapa descargado, la ubicación aproximada del guía y contenido ambiental revisado. No debe presentarse como servicio meteorológico ni de emergencias.

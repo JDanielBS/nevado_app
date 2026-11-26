@@ -4,7 +4,7 @@
 
 Reto de IA "Guía de páramo sin señal" (UTON, PNN Los Nevados, recorrido Brisas a Valle de las Tumbas). Este documento compara los requisitos con el código de este repositorio y lista lo que falta.
 
-**Usuario de la aplicación:** solo el guía. La ficha técnica habla de orientar a "cada visitante" y de usuarios de distintas edades: falta confirmar con la organización que este enfoque cumple. Argumento de respaldo: el visitante recibe la información a través del guía, que la valida.
+**Usuario de la aplicación:** guías y visitantes, con un pase temporal.
 
 Revisión hecha leyendo el código; no se compiló ni se corrieron las pruebas.
 
@@ -57,8 +57,17 @@ Acordado con la organización el 2026-11-26: la aplicación no debe poder usarse
 | Prioridad | Tarea | Listo cuando |
 |---|---|---|
 | P0 | Probar en un teléfono: escaneo, permiso de cámara, vencimiento y cambio de hora, en modo avión. | Los casos se comportan como en las pruebas. |
-| P0 | Subir la vigencia por defecto (hoy 12 minutos) a la duración real del recorrido. | `minutosPorDefecto` actualizado. |
+| P0 | Subir la vigencia por defecto (hoy 10 minutos) a la duración real del recorrido. | `minutosPorDefecto` actualizado. |
 | P1 | Definir quién genera los pases y custodia la clave privada. | Responsable acordado. |
+
+## Protección del contenido
+
+**Ya existe:** fichas cifradas, llave temporal en el QR, borrado al vencer, bloqueo de capturas y copias y APK ofuscado (ver `README.md`).
+
+| Prioridad | Tarea | Listo cuando |
+|---|---|---|
+| P0 | Verificar en el teléfono: capturas bloqueadas, descarga de fichas, borrado al vencer y reapertura sin red. | Los casos se comportan como en las pruebas. |
+| P1 | Decidir si `contenido/` puede estar en el repositorio cuando tenga contenido oficial. | Decisión documentada. |
 
 ## Instalación en la estación
 
@@ -117,7 +126,6 @@ Contenido mínimo exigido:
 | P0 | Eliminar la generación sin fuente: hoy, si no hay ficha y el modelo está listo, recibe la pregunta sola. Cambiar también la prueba "sin ficha usa el modelo" y el texto "Modelo listo para preguntas que no estén en las fichas". | `chat_controller.dart`, `chat_screen.dart`, `test/chat_test.dart` | Sin fragmento siempre hay abstención. |
 | P0 | Reglas para actividad y alerta del volcán, acceso y cierres, y condiciones de hoy. | `rules.dart` | "¿Cuál es la alerta del volcán hoy?" produce abstención. |
 | P0 | Regla de salud: no diagnosticar ni recetar; avisar al personal. Hoy "me duele la cabeza" puede devolver consejos de una ficha sin fuente. | `rules.dart` | La petición de consejo de salud remite al personal. |
-| P0 | Cambiar los textos que remiten "a un guía", porque quien usa la app es el guía. Propuesta: personal del parque y protocolo de la operación. | `responder.dart`, `rules.dart`, `home_screen.dart`, `emergency_screen.dart` | Ningún texto pide buscar un guía. |
 | P1 | Premisas falsas y preguntas como bañarse en una laguna. | `rules.dart`, fichas | No se confirma una premisa sin respaldo. |
 | P1 | Fichas que expresen las contradicciones entre guiones y separen relatos culturales de hechos científicos. | contenido | La pregunta sobre Kumanday explica la incertidumbre. |
 | P1 | Excluir del contenido los medicamentos (UTON p. 54) y la Alerta Amarilla como dato actual (guion norte). | contenido | Ninguna respuesta los afirma. |
@@ -138,7 +146,7 @@ Contradicciones detectadas en los guiones:
 
 | Prioridad | Tarea | Listo cuando |
 |---|---|---|
-| P0 | Importar un archivo de fichas desde el teléfono y guardarlo localmente. Requiere dependencias nuevas (selector de archivos y almacenamiento): acordarlas antes de instalar. | El personal carga una ficha nueva sin recompilar y la app la cita. |
+| P0 | Probar la actualización desde la estación: editar `contenido/`, emitir un pase y comprobar el cambio en el teléfono. Ya no requiere recompilar. | El teléfono muestra la ficha nueva con su cita. |
 | P0 | Validar el archivo (campos obligatorios, guion, página, fecha) y conservar el contenido anterior si falla. | Un archivo defectuoso no rompe la app. |
 | P1 | Plantilla de ficha e instrucciones de una página para el personal. | Alguien sin conocimientos de programación puede crear una ficha. |
 

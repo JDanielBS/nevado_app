@@ -11,13 +11,22 @@ import 'package:cryptography/cryptography.dart';
 const _prefijo = 'NEV1';
 
 class Pase {
-  const Pase({required this.emitido, required this.vence, this.modelo});
+  const Pase({required this.emitido, required this.vence, this.modelo, this.contenido, this.llave});
 
   final DateTime emitido;
   final DateTime vence;
 
   /// Dirección desde la que descargar el modelo (servidor de la estación). Opcional.
   final Uri? modelo;
+
+  /// Dirección del paquete cifrado de fichas. Opcional.
+  final Uri? contenido;
+
+  /// Llave que abre el paquete de fichas de la jornada.
+  final List<int>? llave;
+
+  /// Copia que solo conserva las fechas, para recordar un pase vencido sin guardar sus secretos.
+  Pase sinSecretos() => Pase(emitido: emitido, vence: vence);
 }
 
 final _algoritmo = Ed25519();
@@ -34,6 +43,8 @@ Future<String> firmarPase(Pase pase, SimpleKeyPair claves) async {
         'iat': pase.emitido.millisecondsSinceEpoch ~/ 1000,
         'exp': pase.vence.millisecondsSinceEpoch ~/ 1000,
         if (pase.modelo != null) 'url': '${pase.modelo}',
+        if (pase.contenido != null) 'c': '${pase.contenido}',
+        if (pase.llave != null) 'k': _codificar(pase.llave!),
       }),
     ),
   );
@@ -59,8 +70,15 @@ Future<Pase?> leerPase(String codigo, String clavePublica) async {
     if (!valida) return null;
     final datos = jsonDecode(utf8.decode(_decodificar(partes[1]))) as Map<String, dynamic>;
     DateTime fecha(String campo) => DateTime.fromMillisecondsSinceEpoch((datos[campo] as int) * 1000);
-    final url = datos['url'] as String?;
-    return Pase(emitido: fecha('iat'), vence: fecha('exp'), modelo: url == null ? null : Uri.parse(url));
+    Uri? direccion(String campo) => datos[campo] == null ? null : Uri.parse(datos[campo] as String);
+    final llave = datos['k'] as String?;
+    return Pase(
+      emitido: fecha('iat'),
+      vence: fecha('exp'),
+      modelo: direccion('url'),
+      contenido: direccion('c'),
+      llave: llave == null ? null : _decodificar(llave),
+    );
   } catch (_) {
     // Cualquier código mal formado es simplemente un pase no válido.
     return null;
