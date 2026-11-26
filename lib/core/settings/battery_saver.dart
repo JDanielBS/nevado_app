@@ -11,12 +11,15 @@ const Map<MotivoAhorro, String> textoMotivo = {
 
 /// Decide si el modo ahorro está activo.
 /// [nivel] va de 0 a 1; un valor negativo o null significa "no disponible".
+/// [preferencia] es lo que eligió la persona; con `null` se decide automáticamente.
 ({bool activo, MotivoAhorro? motivo}) calcularAhorro({
   required double? nivel,
   required bool ahorroSistema,
-  required bool manual,
+  required bool? preferencia,
 }) {
-  if (manual) return (activo: true, motivo: MotivoAhorro.manual);
+  if (preferencia != null) {
+    return (activo: preferencia, motivo: preferencia ? MotivoAhorro.manual : null);
+  }
   if (nivel != null && nivel >= 0 && nivel <= umbralBateriaBaja) {
     return (activo: true, motivo: MotivoAhorro.bateriaBaja);
   }
@@ -24,4 +27,5 @@ const Map<MotivoAhorro, String> textoMotivo = {
   return (activo: false, motivo: null);
 }
 
-String porcentaje(double? nivel) => nivel == null || nivel < 0 ? 'no disponible' : '${(nivel * 100).round()} %';
+String porcentaje(double? nivel) =>
+    nivel == null || nivel < 0 ? 'no disponible' : '${(nivel * 100).round()} %';

@@ -2,12 +2,23 @@
 
 > Copia traída del proyecto previo. Las rutas `app_flutter/` y `docs/` corresponden a esa estructura anterior; en este repositorio ver el `README.md`.
 
-Última actualización: 2026-11-25
+Última actualización: 2026-11-26
+
+## Actualización del 2026-11-26
+- **Usuario:** la aplicación la usa solo el guía; no se distribuye a los visitantes. Falta confirmar con la organización que esto cumple el reto, que habla de orientar a cada visitante.
+- Plataforma confirmada (2026-11-26): solo teléfono, sin internet y con recursos limitados. Se descartan Raspberry Pi y Arduino.
+- **Pase de recorrido:** QR firmado con vencimiento (12 minutos por ahora, para pruebas). Sin pase solo abren Emergencias y Mi ubicación. Probado con pruebas automáticas; falta probar el escaneo en un teléfono.
+- **Instalación:** sin tiendas. El computador de la estación reparte APK y modelo por red local; el QR del pase activa la app y descarga el modelo. Probado con pruebas automáticas; falta el flujo real con teléfono.
+- **Reto UTON:** funcionar sin conexión, responder solo con los dos guiones citando guion y página, abstenerse cuando no haya respaldo, permitir actualizar fichas sin tocar código y ser viable en energía. Entregables: prototipo, código, ficha de una página y pitch de 3 minutos.
+- **Falta crítica:** en `lib/features/chat/chat_controller.dart`, cuando no hay ficha, el modelo responde sin texto de apoyo.
+- **Contenido:** las fichas siguen siendo de demostración; no hay contenido de los guiones.
+- Las secciones siguientes describen la versión anterior (`app_flutter/`). Este repositorio usa `flutter_edge_ai` con Gemma 3 1B y no incluye la voz.
 
 ## Fase actual
 App migrada a Flutter (`app_flutter/`) con mapa 3D offline del sector Nevado del Ruiz integrado. Versión de demostración: el contenido y el mapa no están verificados.
 
 ## Decisiones tomadas
+- **Usuario (2026-11-26):** solo el guía.
 - Plataforma: solo Android en esta etapa. iOS queda para después del MVP.
 - **Framework: Flutter** (decidido el 2026-11-25). La app en Expo (`app/`) queda solo como referencia y no se sigue desarrollando.
 - Plazo: llegar con avance visible el jueves 2026-11-26.

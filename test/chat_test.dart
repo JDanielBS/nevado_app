@@ -31,8 +31,11 @@ class FakeEngine implements LlmEngine {
   @override
   Future<bool> isInstalled() async => installed;
 
+  Uri? origen;
+
   @override
-  Stream<int> install() {
+  Stream<int> install({Uri? origen}) {
+    this.origen = origen;
     installs++;
     if (failInstall) return Stream.error(Exception('sin red'));
     return progress.stream;
@@ -107,10 +110,10 @@ void main() {
     expect(find.text('Hola mundo'), findsOneWidget);
   });
 
-  testWidgets('sin token no ofrece descargar', (tester) async {
+  testWidgets('sin origen de descarga pide escanear el pase', (tester) async {
     await open(tester, FakeEngine(canDownload: false));
     expect(find.text('Descargar'), findsNothing);
-    expect(find.textContaining('.env'), findsOneWidget);
+    expect(find.textContaining('escanea el pase'), findsOneWidget);
   });
 
   testWidgets('fallo de descarga permite reintentar', (tester) async {

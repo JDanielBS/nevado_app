@@ -17,16 +17,17 @@ class Ajustes extends ChangeNotifier with WidgetsBindingObserver {
   Timer? _reloj;
 
   double _escala = 1;
-  bool _ahorroManual = false;
+
+  /// Elección de la persona sobre el modo ahorro; `null` es automático.
+  bool? _preferenciaAhorro;
   double? _nivelBateria;
   bool _ahorroSistema = false;
 
   double get escala => _escala;
-  bool get ahorroManual => _ahorroManual;
   double? get nivelBateria => _nivelBateria;
 
   ({bool activo, MotivoAhorro? motivo}) get _ahorro =>
-      calcularAhorro(nivel: _nivelBateria, ahorroSistema: _ahorroSistema, manual: _ahorroManual);
+      calcularAhorro(nivel: _nivelBateria, ahorroSistema: _ahorroSistema, preferencia: _preferenciaAhorro);
   bool get ahorroActivo => _ahorro.activo;
   MotivoAhorro? get motivoAhorro => _ahorro.motivo;
 
@@ -35,10 +36,15 @@ class Ajustes extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
-  set ahorroManual(bool valor) {
-    _ahorroManual = valor;
+  /// La persona activa o desactiva el modo ahorro, también cuando se activó solo.
+  void elegirAhorro(bool activo) {
+    // Si coincide con lo automático no hace falta recordar la elección.
+    _preferenciaAhorro = activo == _automatico ? null : activo;
     notifyListeners();
   }
+
+  bool get _automatico =>
+      calcularAhorro(nivel: _nivelBateria, ahorroSistema: _ahorroSistema, preferencia: null).activo;
 
   void iniciar() {
     WidgetsBinding.instance.addObserver(this);
@@ -56,6 +62,8 @@ class Ajustes extends ChangeNotifier with WidgetsBindingObserver {
     try {
       _nivelBateria = (await _bateria.batteryLevel) / 100;
       _ahorroSistema = await _bateria.isInBatterySaveMode;
+      // Haberlo desactivado vale para este episodio: con la batería recuperada vuelve a ser automático.
+      if (_preferenciaAhorro == false && !_automatico) _preferenciaAhorro = null;
       notifyListeners();
     } catch (_) {
       // Sin datos de batería (por ejemplo en el navegador) no se activa el ahorro automático.

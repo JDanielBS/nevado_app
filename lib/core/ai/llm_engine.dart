@@ -8,13 +8,14 @@ abstract interface class LlmEngine {
   /// Motivo por el que este equipo no puede usar el modelo, o `null` si puede.
   String? unsupportedReason();
 
-  /// Si la app se compiló con lo necesario para descargar el modelo.
+  /// Si puede descargar el modelo sin que le indiquen de dónde (compilación de desarrollo con token).
   bool get canDownload;
 
   Future<bool> isInstalled();
 
-  /// Descarga el modelo. Emite el porcentaje de avance.
-  Stream<int> install();
+  /// Descarga el modelo desde [origen], o desde su fuente pública si se omite.
+  /// Emite el porcentaje de avance.
+  Stream<int> install({Uri? origen});
 
   /// Deja el modelo en memoria. Requiere que esté instalado.
   ///

@@ -1,22 +1,24 @@
 ## **Documentación inicial del proyecto**
 
+> **Decisión del 2026-11-26:** la aplicación la usa solo el guía; no se distribuye a los visitantes. Los requisitos afectados se actualizaron en esa fecha. Falta confirmar con la organización que esto cumple el reto.
+
 ### ***Problemática***
 
-El Parque Nacional Natural Los Nevados recibe miles de visitantes en alta montaña, un entorno sin red eléctrica, sin señal celular y sin internet. Los visitantes necesitan orientación (rutas, seguridad, normas, clima, fauna y flora, emergencias), pero hoy no cuentan con un medio que se la entregue de forma continua y personalizada en el sitio. Las soluciones basadas en la nube no funcionan allí, y la atención humana no alcanza para tantas personas.
+El Parque Nacional Natural Los Nevados recibe miles de visitantes en alta montaña, un entorno sin red eléctrica, sin señal celular y sin internet. Los visitantes necesitan orientación (rutas, seguridad, normas, clima, fauna y flora, emergencias) y el guía no cuenta con un apoyo que le permita responder cada pregunta en el sitio. Las soluciones basadas en la nube no funcionan allí.
 
 ### ***Requisito principal***
 
-Desarrollar un **asistente de inteligencia artificial que funcione sin conexión a internet** (con o sin red, según haya cobertura) y que oriente a los visitantes del parque en alta montaña.
+Desarrollar un **asistente de inteligencia artificial que funcione sin conexión a internet** (con o sin red, según haya cobertura) y que apoye al guía en las estaciones del parque.
 
 ### ***Restricciones del entorno***
 
 * No hay red eléctrica en el terreno.  
 * No hay señal ni internet.  
-* Se espera atender a miles de visitantes.
+* El usuario de la aplicación es el guía.
 
 ### ***Enfoque preliminar***
 
-Una aplicación descargable antes de la visita, con el modelo y la información del parque almacenados en el dispositivo del usuario. Esto permite responder sin conexión y, cuando haya internet, actualizar contenidos o conectarse a servicios en la nube.
+Una aplicación instalada antes del recorrido en el teléfono del guía, con el modelo y la información del parque almacenados en el dispositivo. Esto permite responder sin conexión y, cuando haya internet, actualizar contenidos o conectarse a servicios en la nube.
 
 # **Matriz de requisitos (versión 3\)**
 
@@ -26,13 +28,13 @@ Una aplicación descargable antes de la visita, con el modelo y la información 
 
 | ID | Categoría | Requisito | Prioridad | Estado |
 | ----- | ----- | ----- | ----- | ----- |
-| RF-01 | Funcional | Responder preguntas del visitante en lenguaje natural sobre el parque | Esencial | Confirmado |
+| RF-01 | Funcional | Responder preguntas del guía en lenguaje natural sobre el parque | Esencial | Confirmado |
 | RF-02 | Funcional | Funcionar 100 % sin conexión a internet | Esencial | Confirmado |
 | RF-03 | Funcional | Brindar información con o sin internet según haya cobertura | Esencial | Confirmado |
 | RF-04 | Funcional | Dar acceso rápido a emergencias (contactos, protocolos, mal de altura, puesto de guardaparques más cercano), sin depender del modelo | Esencial | Confirmado |
 | RF-05a | Funcional | Mostrar el mapa del parque descargado en el dispositivo | Deseable | Por validar |
-| RF-05b | Funcional | Mostrar las coordenadas GPS del visitante, copiables para dictarlas a un guardaparques, sin internet | Esencial | Por validar |
-| RF-05c | Funcional | Mostrar la ubicación del visitante sobre el mapa | Deseable | Por validar |
+| RF-05b | Funcional | Mostrar las coordenadas GPS del guía, copiables para dictarlas a un guardaparques, sin internet | Esencial | Por validar |
+| RF-05c | Funcional | Mostrar la ubicación del guía sobre el mapa | Deseable | Por validar |
 | RF-06 | Funcional | Soportar español e inglés | Deseable | Confirmado |
 | RF-07 | Funcional | Nivel 0 incluido en la instalación base (menos de \~50 MB): emergencias, normas, contactos y búsqueda por palabras clave, sin modelo | Esencial | Confirmado |
 | RD-01 | Datos | Almacenar la base de conocimiento del parque en el dispositivo | Esencial | Confirmado |
@@ -48,18 +50,18 @@ Una aplicación descargable antes de la visita, con el modelo y la información 
 | RE-01 | Dispositivo y energía | Tener bajo consumo de batería (no hay red eléctrica) | Esencial | Confirmado |
 | RE-02 | Dispositivo y energía | La gama mínima es resultado de las pruebas (RAM, procesador, almacenamiento). Se detecta en ejecución y se degrada al Nivel 0 o a un modelo menor | Esencial | Por validar |
 | RE-03 | Dispositivo y energía | Ser legible y operable al aire libre y con frío: uso con guantes, contraste alto bajo sol o nieve y tamaño de texto ajustable | Deseable | Confirmado |
-| RS-01 | Distribución | Descarga previa a la visita (tienda de apps, QR, wifi en la entrada) y, si es posible, hotspot local en el centro de visitantes, con descarga por niveles | Esencial | Por validar |
+| RS-01 | Distribución | Instalación previa al recorrido en los teléfonos de los guías (wifi o copia directa), con descarga del modelo por niveles | Esencial | Por validar |
 | RS-02 | Distribución | Actualizar contenidos cuando haya conexión | Esencial | Confirmado |
 | RN-01 | No funcional | Evitar que respuestas erróneas en temas críticos pongan en riesgo al visitante | Esencial | Confirmado |
 | RN-02 | No funcional | Ofrecer interfaz simple, con botones grandes y uso con guantes | Deseable | Confirmado |
-| RN-03 | No funcional | Soportar miles de visitantes: es un tema de distribución y soporte, no de servidor, porque cada uno usa su copia local | Esencial | Confirmado |
+| RN-03 | No funcional | Instalar y mantener la aplicación en los teléfonos de los guías; cada uno usa su copia local, sin servidor | Esencial | Confirmado |
 | RN-04 | No funcional | Procesar ubicación y uso en el dispositivo, sin telemetría por defecto | Deseable | Por validar |
-| RN-05 | No funcional | Mostrar un aviso visible de que la app orienta y no reemplaza a guías ni a Parques Nacionales Naturales | Esencial | Confirmado |
+| RN-05 | No funcional | Mostrar un aviso visible de que la app apoya al guía y no reemplaza su criterio ni a Parques Nacionales Naturales | Esencial | Confirmado |
 | RN-06 | No funcional | Evaluar el asistente con un set de 100-150 preguntas en español e inglés (50 críticas). Criterio de aprobación: cero fallos en las críticas | Esencial | Por validar |
 
 ## **Supuestos a confirmar**
 
-* Qué dispositivos usan realmente los visitantes.  
+* Qué dispositivos usan realmente los guías.  
 * Qué información oficial del parque está disponible y en qué formato.  
 * Quién valida y mantiene el contenido operativo del parque, y cada cuánto cambia.  
 * Protocolo de emergencia sin señal acordado con Parques Nacionales (puestos de guardaparques, refugios, radio).  
@@ -97,7 +99,7 @@ Una aplicación descargable antes de la visita, con el modelo y la información 
 | **RAG más avanzado** (EdgeRAG, MeMemo, índices optimizados) | Un RAG simple basta con pocos documentos | Si la base de conocimiento crece mucho o la búsqueda es lenta |
 | **Búsqueda híbrida BM25 \+ vectorial** | El Nivel 0 por palabras clave ya cubre parte de la necesidad | Si la búsqueda falla con nombres propios o términos exactos |
 | **Plan B en Kotlin nativo** | Se envuelve el motor tras una interfaz propia, sin gastar tiempo ahora | Si el paquete de Flutter falla o deja de mantenerse |
-| **Hotspot local y descarga por niveles** | Depende de infraestructura sin confirmar | Antes de un piloto real con visitantes |
+| **Hotspot local y descarga por niveles** | Depende de infraestructura sin confirmar | Antes de un piloto real con guías |
 | **Carga del modelo solo bajo demanda** | Simplifica el prototipo | Si la batería o la memoria se vuelven un problema |
 
 La mayoría se activa según lo que se mida en el prototipo: si falla la **calidad**, vuelven el ajuste fino, los modelos de 3-4B o un RAG más avanzado; si falla la **velocidad o la memoria**, vuelven la cuantización avanzada, la compresión del KV cache y los otros motores.
@@ -147,7 +149,7 @@ No hacen falta: `flutter_edge_ai_embeddings`, MediaPipe, Genkit ni el paquete de
 
 * La referencia de \~47-52 tokens/s es de un Galaxy S26 Ultra (gama muy alta). Diseñar para una velocidad mucho menor y medir en celulares reales.  
 * GPU apagada por defecto: usar CPU y activar la GPU solo en celulares probados.  
-* La descarga de un modelo grande (\~2.5 GB) depende de wifi previo o de un hotspot local. Un modelo de \~1 GB reduce el problema.  
+* La descarga de un modelo grande (\~2.5 GB) depende de wifi previo o de copia directa al teléfono del guía. Un modelo de \~1 GB reduce el problema.  
 * La predicción multi-token (MTP) no es base de viabilidad.  
 * Ajuste fino: se pospone. Habría que fusionar y reconvertir el modelo a `.litertlm`.
 
