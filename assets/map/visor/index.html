@@ -121,6 +121,8 @@
     const colorFranjas = ["interpolate", ["linear"], ["elevation"],
       ...FRANJAS.flatMap(([desde, color], i) => [desde, color, (FRANJAS[i + 1]?.[0] ?? 5600) - 4, color])];
     const geojson = (nombre) => ({ type: "geojson", data: `${base}salida/${nombre}.geojson` });
+    // Una sola fuente DEM para el relieve, el sombreado y el color: cada fuente decodifica sus
+    // propios tiles, así que tres copias triplicaban la memoria del mismo terreno.
     const dem = { type: "raster-dem", tiles: [`${base}salida/elevacion/{z}/{x}/{y}.png`],
       encoding: "terrarium", tileSize: 256, minzoom: 10, maxzoom: 12, bounds: caja,
       attribution: "Copernicus DEM GLO-30" };
@@ -162,14 +164,16 @@
       container: "mapa",
       center: VOLCAN, zoom: 11.3, pitch: 52, bearing: 0,
       minZoom: 10.8, maxZoom: 15, maxPitch: 65,
+      // Menos tiles fuera de la vista y sin doble búfer de fundido: baja la memoria con el
+      // teléfono de 4 GB. La vista usa unos 32 tiles; el resto es margen para desplazarse.
+      maxTileCacheSize: 64,
+      fadeDuration: 0,
       maxBounds: [[oeste - 0.06, sur - 0.07], [este + 0.06, norte + 0.07]],
       attributionControl: false,
       style: {
         version: 8,
         sources: {
-          terreno: dem, sombra: { ...dem }, tinte: { ...dem },
-          satelite: { type: "image", url: `${base}satelite/s2cloudless2016_ruiz.jpg`,
-            coordinates: [[oeste, norte], [este, norte], [este, sur], [oeste, sur]] },
+          terreno: dem,
           curvas: geojson("curvas"), vias: { ...geojson("vias"), attribution: "© OpenStreetMap" },
           agua: geojson("agua"), area: geojson("area_pnn"), limite: geojson("limite_pnn"), puntos: geojson("puntos"),
           mascara: { type: "geojson", data: mascara },
@@ -181,12 +185,11 @@
           "sky-horizon-blend": 0.6, "horizon-fog-blend": 0.5, "fog-ground-blend": 0.9 },
         layers: [
           { id: "fondo", type: "background", paint: { "background-color": "#fbf0d2" } },
-          { id: "tinte", type: "color-relief", source: "tinte", paint: { "color-relief-opacity": 1,
+          { id: "tinte", type: "color-relief", source: "terreno", paint: { "color-relief-opacity": 1,
             "color-relief-color": colorFranjas } },
           { id: "area", type: "fill", source: "area", layout: { visibility: "none" },
             paint: { "fill-color": "#bfe3a8", "fill-opacity": 0.85 } },
-          { id: "satelite", type: "raster", source: "satelite", layout: { visibility: "none" } },
-          { id: "sombra", type: "hillshade", source: "sombra", paint: { "hillshade-exaggeration": 0.3,
+          { id: "sombra", type: "hillshade", source: "terreno", paint: { "hillshade-exaggeration": 0.3,
             "hillshade-shadow-color": "#5b4a86", "hillshade-highlight-color": "#fff8e1",
             "hillshade-accent-color": "#7a5c8e" } },
           { id: "curvas", type: "line", source: "curvas", filter: ["step", ["zoom"], ["==", ["get", "maestra"], true], 12.5, true],
@@ -221,6 +224,9 @@
         ]
       }
     });
+    // El teléfono reporta 2.5 y el framebuffer del relieve crece con el cuadrado de esa cifra.
+    // A 1.5 se pierde poco en una pantalla de 6 pulgadas y se libera más de la mitad.
+    mapa.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     mapa.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-right");
     mapa.addControl(new maplibregl.ScaleControl({ maxWidth: 80 }), "bottom-left");
     mapa.on("error", (e) => console.error("[visor]", e.error && e.error.message));
@@ -337,9 +343,20 @@
       else abrirFicha(p.nombre || "Sendero sin nombre", `${clase} · entre ${p.altitud_min} y ${p.altitud_max} m`);
     });
 
+    // La imagen satelital son 41 MB de RGBA: se agrega solo al pedirla y se retira al apagarla.
+    function mostrarSatelite(ver) {
+      if (ver && !mapa.getSource("satelite")) {
+        mapa.addSource("satelite", { type: "image", url: `${base}satelite/s2cloudless2016_ruiz.jpg`,
+          coordinates: [[oeste, norte], [este, norte], [este, sur], [oeste, sur]] });
+        mapa.addLayer({ id: "satelite", type: "raster", source: "satelite" }, "sombra");
+      } else if (!ver && mapa.getSource("satelite")) {
+        mapa.removeLayer("satelite");
+        mapa.removeSource("satelite");
+      }
+    }
     function aplicarRelieve() {
       const satelite = el("ver-satelite").checked;
-      visible(["satelite"], satelite);
+      mostrarSatelite(satelite);
       visible(["sombra"], relieve);
       visible(["area"], !relieve && !satelite);
       visible(["tinte"], relieve && !satelite);
