@@ -94,3 +94,7 @@ maps/dem/
 maps/geofabrik/
 maps/WDPA_*/
 maps/salida/
+
+# Contexto local para agentes (no subir)
+/.agents/
+/AGENTS.md
