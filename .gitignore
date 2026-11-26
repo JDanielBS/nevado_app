@@ -99,5 +99,10 @@ maps/salida/
 /.agents/
 /AGENTS.md
 
+# Documentación 
+/Docs/requisitos_tecnicos
+# Contenido de la guia (uso restringido, no subir al repo publico)
+/contenido/
+
 # Archivos que reparte la estación (modelo y copias del APK)
 /estacion/
