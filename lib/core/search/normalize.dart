@@ -2,7 +2,7 @@ const _palabrasVacias = {
   'a', 'al', 'algo', 'como', 'con', 'cual', 'cuales', 'cuando', 'cuanto', 'de', 'del', 'donde', //
   'el', 'ella', 'en', 'es', 'esta', 'este', 'esto', 'hay', 'la', 'las', 'lo', 'los', 'me', 'mi', //
   'mis', 'no', 'para', 'por', 'que', 'quien', 'se', 'si', 'sobre', 'son', 'su', 'sus', 'te', 'un', //
-  'una', 'unas', 'uno', 'unos', 'y', 'ya', 'puedo', 'debo', 'tengo', 'hago', 'hacer',
+  'una', 'unas', 'uno', 'unos', 'y', 'ya', 'puedo', 'debo', 'tengo', 'hago', 'hacer', 'hace', 'hacen',
 };
 
 const _sinTilde = {

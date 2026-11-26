@@ -47,9 +47,18 @@ curl -L -H "Authorization: Bearer hf_..." -o estacion/Gemma3-1B-IT_multi-prefill
 
 En Windows PowerShell, usar `curl.exe` en lugar de `curl`.
 
-Solo para desarrollo, sin estación: crear `.env` con `HUGGINGFACE_TOKEN=hf_...` y agregar
-`--dart-define-from-file=.env` a `flutter run`. Ese token queda dentro del APK: **no repartir un APK compilado
-así**.
+### Token dentro de la app (descarga por internet)
+
+Decisión del 2026-11-26: la app del visitante descarga el modelo desde Hugging Face con un token **de solo
+lectura** del equipo y, si falla, desde el teléfono del guía. Crear `.env` (git lo ignora):
+
+```sh
+HUGGINGFACE_TOKEN=hf_...
+CONTENIDO_URL=https://nevados-contenido.<cuenta>.workers.dev
+```
+
+y compilar con `--dart-define-from-file=.env`. El token queda dentro del APK y se puede extraer: si se filtra,
+revocarlo y crear otro. `CONTENIDO_URL` sale de `cloudflare/README.md`.
 
 ## 3. Ejecutar en el teléfono (desarrollo)
 
@@ -58,10 +67,50 @@ arm64 y 4 GB de RAM.
 
 ```sh
 flutter devices
-flutter run
+flutter run                                                               # app del visitante
+flutter run --flavor guia -t lib/main_guia.dart --dart-define-from-file=secrets/guia.env   # app del guía
 ```
 
-Mientras corre: `r` recarga, `R` reinicia y `q` cierra.
+Mientras corre: `r` recarga, `R` reinicia y `q` cierra. Sin `--flavor`, se compila la app del visitante
+(`default-flavor` en `pubspec.yaml`). Las dos se pueden instalar a la vez en un mismo teléfono.
+
+## 3.1. App del guía
+
+Sin usuario ni contraseña ni vencimiento. Edita el contenido, lo publica en R2, lo comparte por su zona wifi y
+emite los pases. Va en un celular o tableta dedicado.
+
+1. Crear las claves (una vez; requiere `secrets/pase_privada.key` y `.env`):
+
+```sh
+dart run tool/preparar_guia.dart
+```
+
+Crea `secrets/guia.env` con el token, la dirección del contenido, la clave de los pases, la llave del
+contenido y la clave para publicar. **Nunca compilar la app del visitante con ese archivo.**
+
+2. Compilar e instalar:
+
+```sh
+flutter build apk --release --flavor guia -t lib/main_guia.dart --target-platform android-arm64 --dart-define-from-file=secrets/guia.env
+adb install -r build/app/outputs/flutter-apk/app-guia-release.apk
+```
+
+3. Copiar al teléfono del guía la app del visitante, para que la reparta (sección 5):
+
+```sh
+adb push build/app/outputs/flutter-apk/app-visitante-release.apk /sdcard/Android/data/co.nevados.app.guia/files/nevados.apk
+```
+
+La carpeta existe después de abrir la app del guía una vez.
+
+4. Descargar el modelo en la app del guía (Guía IA, con internet), para que también lo comparta.
+
+En el parque: activar la zona wifi del teléfono, abrir **Compartir** y tocar **Encender servidor**. Los
+visitantes se conectan a esa red, escanean con la cámara el QR "Instalar la app" (si no la tienen) y, desde la
+app, el QR del pase.
+
+Si se pierde un teléfono del guía: `dart run tool/preparar_guia.dart --nuevas`, actualizar el secreto del
+Worker, compilar e instalar de nuevo y publicar otra vez.
 
 ## 4. Generar el pase (y entregar el modelo)
 
@@ -69,8 +118,11 @@ Sin un pase vigente solo abren las secciones Seguridad y Acerca. Cada pase dura 
 
 Requisitos: el modelo en `estacion/` (sección 2) y `secrets/pase_privada.key`.
 
-El servidor entrega también las **fichas cifradas** (`contenido/fichas.demo.json`, o `--contenido RUTA`). Para
-publicar cambios en las fichas basta con editar el archivo y pulsar **Enter**: no hace falta recompilar. La
+Esta es la estación con computador. Sin computador, la app del guía hace lo mismo (sección 3.1).
+
+El servidor entrega también el **contenido cifrado** (las secciones de `contenido/secciones/`, o
+`--contenido CARPETA`). Para publicar cambios basta con editar los `.md` y pulsar **Enter**: no hace falta
+recompilar. La
 llave de cada día se crea en `secrets/llaves/`. Un pase `--sin-servidor` activa la app, pero no entrega fichas.
 
 ### Paso 1. Ejecutar uno de estos comandos
@@ -132,23 +184,23 @@ Para generar pases en otro computador, copiar allí `secrets/pase_privada.key`, 
 
 ## 5. Compilar el APK
 
-APK que reparte la estación (sin token):
+APK del visitante:
 
 ```sh
-flutter build apk --release --target-platform android-arm64 --obfuscate --split-debug-info=build/symbols
+flutter build apk --release --flavor visitante --target-platform android-arm64 --obfuscate --split-debug-info=build/symbols --dart-define-from-file=.env
 ```
 
 `--obfuscate` dificulta la ingeniería inversa. Conservar `build/symbols/` de cada versión repartida: se
 necesita para interpretar los errores. Las capturas de pantalla están bloqueadas en todas las compilaciones.
 
-Queda en `build/app/outputs/flutter-apk/app-release.apk`. Hoy se firma con la clave de depuración del
+Queda en `build/app/outputs/flutter-apk/app-visitante-release.apk`. Hoy se firma con la clave de depuración del
 computador que compila: un APK compilado en otro computador no actualiza al ya instalado (hay que
 desinstalarlo antes).
 
 Instalación o actualización por cable, **sin borrar los datos ni el modelo**:
 
 ```sh
-adb install -r build/app/outputs/flutter-apk/app-release.apk
+adb install -r build/app/outputs/flutter-apk/app-visitante-release.apk
 ```
 
 `adb` está en `platform-tools` del SDK de Android (en Linux, `~/Android/Sdk/platform-tools/adb`).
@@ -192,6 +244,8 @@ Con Flutter 3.50.1, `flutter analyze` reporta avisos de obsolescencia de `packag
 | `python3 eval/comparar_modelos.py` | Compara modelos en el computador (ver `eval/README.md`) | `llama.cpp` y los modelos descargados |
 | `python3 maps/scripts/generar_mapa.py` | Regenera los datos del mapa (ver `maps/README.md`) | Datos crudos y librerías de mapas |
 | `python3 tool/sync_map_assets.py` | Copia el mapa generado a `assets/map/` | Mapa generado |
+| `python3 maps/scripts/generar_recorrido.py` | Genera el recorrido de 5 paradas y sus tramos (`assets/map/salida/recorrido.geojson`) desde `maps/recorrido/estaciones.csv` | Ninguno |
+| `node --check cloudflare/worker.js` | Revisa la sintaxis del Worker de publicación | Node.js |
 
 ## Estado de verificación
 
@@ -199,6 +253,12 @@ Probado el 2026-11-26 en Linux con Flutter 3.50.1: `flutter test`, `flutter anal
 de depuración y release sin token y la generación del pase. La entrega de archivos del servidor está cubierta
 por pruebas automáticas. **Sin probar:** el flujo completo de la estación con un teléfono y el modelo real, y el
 resto de comandos.
+
+Rama `feat/guia-rag` (2026-11-26): `flutter test` (todo pasa salvo 3 pruebas de `shell_test.dart` que ya
+fallaban antes), `flutter analyze` sin observaciones y compilación de `app-visitante-release.apk` y
+`app-guia-release.apk`. El visor del mapa con la sección Recorrido se revisó en el navegador. **Sin probar:**
+las dos apps en teléfonos, la zona wifi real, el Worker en Cloudflare (solo se revisó su sintaxis) y la
+descarga del modelo desde Hugging Face con el token.
 
 ## Problemas frecuentes
 

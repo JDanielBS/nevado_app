@@ -43,11 +43,11 @@ class ModelStatus extends StatelessWidget {
     final reason = chat.phase == ChatPhase.unsupported ? chat.error : null;
     final failed = chat.error != null && (chat.phase == ChatPhase.noModel || chat.phase == ChatPhase.failed);
     final message = switch (chat.phase) {
-      ChatPhase.downloading => 'Descargando ${chat.progress} %. No salgas de la red de la estación.',
+      ChatPhase.downloading => 'Descargando ${chat.progress} % desde ${chat.fuenteDescarga ?? 'internet'}. No te desconectes.',
       ChatPhase.loading => 'Comprobando el modelo…',
       _ when reason != null => reason,
       _ when failed => chat.error!,
-      _ when chat.instalado => 'Modelo instalado. Ya puedes salir de la red.',
+      _ when chat.instalado => 'Modelo instalado. Ya puedes desconectarte.',
       _ => 'Preparando el modelo…',
     };
 

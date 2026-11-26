@@ -32,7 +32,7 @@ class ContentStatus extends StatelessWidget {
           Linea(switch (content.estado) {
             EstadoContenido.listo => 'Disponible mientras el pase esté vigente.',
             EstadoContenido.descargando => 'Descargando…',
-            _ => 'No disponible. Conéctate a la red de la estación y escanea un pase de la estación.',
+            _ => 'No disponible. Conéctate a la zona wifi del guía y escanea su pase.',
           }, tamano: 16),
           if (failed) ...[
             const SizedBox(height: Espacio.s),

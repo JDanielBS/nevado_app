@@ -4,15 +4,6 @@
     "categoria": "emergencia",
     "titulo": "Qué hacer en una emergencia",
     "texto": "Mantén la calma, no te separes del grupo y busca a un guía o funcionario del parque. Los números de contacto oficiales aún no están cargados: deben verificarse y agregarse antes de usar la app en el parque.",
-    "palabrasClave": [
-      "emergencia",
-      "ayuda",
-      "auxilio",
-      "accidente",
-      "herido",
-      "perdido",
-      "rescate"
-    ],
     "fuente": "PENDIENTE: contacto oficial de Parques Nacionales Naturales",
     "fechaVerificacion": null,
     "estado": "borrador"

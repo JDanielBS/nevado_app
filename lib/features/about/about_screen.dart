@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
-import '../../core/content/card_repository.dart';
 import '../../core/ui/palette.dart';
 import '../../core/ui/widgets.dart';
 import 'settings_card.dart';
@@ -32,7 +31,7 @@ class AboutScreen extends StatelessWidget {
           titulo: 'Sobre el contenido',
           texto: 'Guía interpretativa de campo. No reemplaza las indicaciones del personal del parque.',
         ),
-        if (hayContenidoSinVerificar(scope?.cards ?? const []))
+        if (scope != null && [...scope.emergencia.map((f) => f.verificada), ...scope.secciones.map((s) => s.verificada)].contains(false))
           const TarjetaTexto(
             titulo: 'Contenido de demostración',
             texto: 'El contenido aún no está verificado. No lo uses para tomar decisiones de seguridad.',

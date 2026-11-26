@@ -1,9 +1,13 @@
 import 'package:flutter/foundation.dart';
 
 import '../../core/ai/llm_engine.dart';
-import '../../core/ai/retriever.dart';
 import '../../core/assistant/responder.dart';
 import '../../core/content/card.dart';
+import '../../core/content/seccion.dart';
+import '../../core/search/search.dart';
+
+/// Lo que el prompt pide responder cuando los documentos no alcanzan (ver `armarPrompt`).
+const marcaSinRespuesta = 'SIN_RESPUESTA';
 
 /// Una pregunta del visitante y lo que se le respondió.
 class Turno {
@@ -11,18 +15,21 @@ class Turno {
 
   final String pregunta;
 
-  /// Respuesta de las reglas o de las fichas.
+  /// Respuesta fija o sin modelo (fragmentos de la guía tal cual).
   Respuesta? respuesta;
 
   /// Texto generado por el modelo, si respondió él.
   String generado = '';
 
+  /// Citas de los fragmentos que recibió el modelo.
+  List<String> fuentes = const [];
+
+  /// Esos fragmentos vienen de contenido verificado.
+  bool verificada = false;
+
   /// El modelo no pudo responder.
   bool fallo = false;
 }
-
-/// Lo que el prompt pide responder cuando los documentos no alcanzan.
-const marcaSinRespuesta = 'SIN_RESPUESTA';
 
 enum ChatPhase {
   checking,
@@ -46,12 +53,10 @@ class ChatController extends ChangeNotifier {
   /// Mensaje para el usuario: motivo de incompatibilidad o último fallo.
   String? error;
   int progress = 0;
-
   /// Texto generado por el modelo.
   String answer = '';
-  List<Fragment> usedFragments = const [];
 
-  /// Respuesta de las reglas o de las fichas. Cuando existe, el modelo no interviene.
+  /// Respuesta fija o sin modelo. Cuando existe, el modelo no interviene.
   Respuesta? reply;
 
   /// Conversación completa, de la más antigua a la más reciente.
@@ -60,7 +65,7 @@ class ChatController extends ChangeNotifier {
   Future<void>? _preparation;
   int _discarded = 0;
 
-  /// Servidor de la estación desde el que descargar el modelo.
+  /// Teléfono del guía desde el que descargar el modelo si no hay internet.
   Uri? origen;
 
   /// El modelo ya se comprobó o se encontró instalado.
@@ -70,6 +75,9 @@ class ChatController extends ChangeNotifier {
   bool enPantalla = false;
 
   bool get canDownload => origen != null || engine.canDownload;
+
+  /// Desde dónde se descargó o se intenta descargar: "internet" o "guía".
+  String? fuenteDescarga;
 
   void _set(ChatPhase next, [String? message]) {
     phase = next;
@@ -136,19 +144,29 @@ class ChatController extends ChangeNotifier {
     if (phase != ChatPhase.noModel) return;
     progress = 0;
     _set(ChatPhase.downloading);
-    try {
-      await for (final percent in engine.install(origen: origen)) {
-        progress = percent;
-        notifyListeners();
+    // Primero internet (Hugging Face, con el token de la app); si falla, el teléfono del guía.
+    final intentos = [if (engine.canDownload) null, ?origen];
+    for (final desde in intentos) {
+      fuenteDescarga = desde == null ? 'internet' : 'guía';
+      progress = 0;
+      notifyListeners();
+      try {
+        await for (final percent in engine.install(origen: desde)) {
+          progress = percent;
+          notifyListeners();
+        }
+      } catch (e) {
+        debugPrint('Asistente: no se pudo descargar desde $fuenteDescarga ($e)');
+        continue;
       }
-    } catch (e) {
-      debugPrint('Asistente: $e');
-      return _set(
-        ChatPhase.noModel,
-        'No se pudo descargar. Revisa la conexión y el espacio libre.',
-      );
+      return _load();
     }
-    await _load();
+    _set(
+      ChatPhase.noModel,
+      intentos.isEmpty
+          ? 'No hay de dónde descargar el modelo.'
+          : 'No se pudo descargar. Revisa la conexión, la red del guía y el espacio libre.',
+    );
   }
 
   Future<void> _load() async {
@@ -169,57 +187,62 @@ class ChatController extends ChangeNotifier {
     }
   }
 
-  /// Agrega un mensaje de la propia app a la conversación.
-  void informar(String pregunta, String texto) {
-    turnos.add(Turno(pregunta)..generado = texto);
-    notifyListeners();
-  }
-
   /// Descarta la respuesta en pantalla y la que se esté generando.
   void clear() {
     if (reply == null && answer.isEmpty && !answering) return;
     _discarded++;
     reply = null;
     answer = '';
-    usedFragments = const [];
     notifyListeners();
   }
 
-  /// Orden de decisión: reglas de seguridad, fichas y, solo con fragmentos, el modelo.
+  /// Agrega un mensaje de la propia app a la conversación (por ejemplo, el resultado de `/prueba`).
+  void informar(String pregunta, String texto) {
+    turnos.add(Turno(pregunta)..generado = texto);
+    notifyListeners();
+  }
+
+  /// Orden de decisión: reglas fijas (emergencia y medicamentos), búsqueda en la guía y el modelo, que
+  /// responde solo con los fragmentos recuperados (RAG). Sin fragmentos no se llama al modelo: se dice
+  /// que no hay información. Si el modelo responde [marcaSinRespuesta], también.
   ///
-  /// Con [batterySaver] activo el modelo no se usa.
+  /// [fragmentos] los entrega la búsqueda híbrida de la pantalla; si se omiten, se buscan en [indice]
+  /// solo por palabras.
+  ///
+  /// Con [batterySaver] activo, o sin modelo, se muestra el fragmento más relevante tal cual.
   Future<void> ask(
     String question, {
-    List<Ficha> cards = const [],
-    List<Fragment> fragments = const [],
+    List<Ficha> emergencia = const [],
+    IndiceGuia? indice,
+    List<Fragmento>? fragmentos,
     bool batterySaver = false,
   }) async {
     final text = question.trim();
     if (answering || text.isEmpty) return;
-    final local = responderPregunta(text, cards);
     answer = '';
-    usedFragments = const [];
     error = phase == ChatPhase.ready ? null : error;
     final turno = Turno(text);
     turnos.add(turno);
-    // Las reglas de seguridad mandan; con fragmentos, el modelo redacta sobre ellos.
-    if (local.tipo == TipoRespuesta.emergencia ||
-        local.tipo == TipoRespuesta.limite ||
-        phase != ChatPhase.ready ||
-        batterySaver ||
-        fragments.isEmpty) {
+    final recuperados = fragmentos ?? recuperar(indice ?? IndiceGuia.vacio, text);
+    final local = respuestaFija(text, emergencia) ??
+        (recuperados.isEmpty || phase != ChatPhase.ready || batterySaver
+            ? respuestaConFragmentos(recuperados)
+            : null);
+    if (local != null) {
       reply = local;
       turno.respuesta = local;
       notifyListeners();
       return;
     }
+    turno
+      ..fuentes = citas(recuperados)
+      ..verificada = recuperados.every((f) => f.verificado);
     reply = null;
-    usedFragments = fragments;
     answering = true;
     notifyListeners();
     final generation = _discarded;
     try {
-      final prompt = _ragPrompt(text, fragments);
+      final prompt = armarPrompt(text, recuperados);
       final reloj = Stopwatch()..start();
       await for (final part in engine.generate(prompt)) {
         if (generation != _discarded) break;
@@ -234,16 +257,11 @@ class ChatController extends ChangeNotifier {
       if (generation == _discarded && answer.contains(marcaSinRespuesta)) {
         // Abstención: mensaje fijo de la app, sin fuentes.
         answer = '';
-        usedFragments = const [];
-        turno.generado = '';
-        reply = turno.respuesta = const Respuesta(TipoRespuesta.sinInformacion, mensajeSinInformacion, []);
+        turno
+          ..generado = ''
+          ..fuentes = const [];
+        reply = turno.respuesta = sinInformacion;
         debugPrint('RAG total ms=${reloj.elapsedMilliseconds} abstención');
-      } else if (generation == _discarded) {
-        // La cita la pone la app a partir de lo recuperado, no el modelo.
-        final fuentes = {for (final f in fragments.take(2)) _fuenteCorta(f.source)};
-        answer = '${answer.split(RegExp(r'\n?\s*Fuente:')).first.trim()}\n\nFuente: ${fuentes.join('; ')}';
-        turno.generado = answer;
-        debugPrint('RAG total ms=${reloj.elapsedMilliseconds} respuesta=$answer');
       }
     } catch (e) {
       debugPrint('Asistente: $e');
@@ -253,27 +271,5 @@ class ChatController extends ChangeNotifier {
       answering = false;
       notifyListeners();
     }
-  }
-
-  /// Plantilla de `prompt_sistema.md`; la de respaldo solo se usa en pruebas.
-  String plantilla =
-      'Responde en español, en máximo 4 frases. Usa solo los documentos. '
-      'Si no responden la pregunta, responde solo $marcaSinRespuesta. No inventes datos.\n\n'
-      'DOCUMENTOS DE CONSULTA\n{documentos}\n\nCONSULTA\n{consulta}';
-
-  static String _fuenteCorta(String fuente) =>
-      fuente.replaceAll(RegExp(r', https?://\S+?(?=,|;|$)'), '');
-
-  String _ragPrompt(String question, List<Fragment> fragments) {
-    final documentos = StringBuffer();
-    for (final f in fragments) {
-      final doc = '${f.path}\n${f.text}\nFuente: ${_fuenteCorta(f.source)}\n\n';
-      // ponytail: tope por caracteres para caber en 2048 tokens; contar tokens si se recorta de más.
-      if (documentos.isNotEmpty && documentos.length + doc.length > 3500) break;
-      documentos.write(doc);
-    }
-    return plantilla
-        .replaceFirst('{documentos}', documentos.toString().trim())
-        .replaceFirst('{consulta}', question);
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../core/ai/knowledge_base.dart';
+import '../../core/search/search.dart';
 
 /// Autoprueba del buscador dentro de la app: escribir `/prueba` en el chat.
 /// Pregunta -> textos aceptables en la ruta del fragmento. Lista vacía: fuera de tema.
@@ -27,25 +28,24 @@ const _casos = <String, List<String>>{
   '¿Cuál es la capital de Francia?': [],
 };
 
-Future<String> autoprueba(KnowledgeBase base) async {
-  await base.indexar();
-  var primero = 0, cinco = 0, abstenciones = 0, ms = 0;
+Future<String> autoprueba(KnowledgeBase base, IndiceGuia indice) async {
+  var primero = 0, enTop = 0, abstenciones = 0, ms = 0;
   final fallos = <String>[];
   for (final caso in _casos.entries) {
     final reloj = Stopwatch()..start();
-    final r = await base.retrieve(caso.key);
+    final r = await base.buscar(indice, caso.key);
     ms += reloj.elapsedMilliseconds;
     if (caso.value.isEmpty) {
       r.isEmpty ? abstenciones++ : fallos.add('${caso.key} (devolvió ${r.length})');
       continue;
     }
-    final pos = r.indexWhere((f) => caso.value.any(f.path.contains));
+    final pos = r.indexWhere((f) => caso.value.any(f.ruta.contains));
     if (pos == 0) primero++;
-    pos >= 0 ? cinco++ : fallos.add(caso.key);
+    pos >= 0 ? enTop++ : fallos.add(caso.key);
   }
   final dentro = _casos.values.where((v) => v.isNotEmpty).length;
   final texto =
-      'Prueba RAG: primero $primero/$dentro, en 5 $cinco/$dentro, '
+      'Prueba RAG: primero $primero/$dentro, en los $fragmentosPorPregunta primeros $enTop/$dentro, '
       'abstención $abstenciones/${_casos.length - dentro}, ${ms ~/ _casos.length} ms por consulta.\n'
       'Fallos: ${fallos.isEmpty ? 'ninguno' : fallos.join(' · ')}';
   debugPrint('RAG RESUMEN $texto');

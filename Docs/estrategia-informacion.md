@@ -1,13 +1,15 @@
 # Manejo de la información y estrategia
 
-Fecha: 2026-11-26. Estado: diseño acordado, **sin implementar**.
+Última actualización: 2026-11-26. Estado: implementado en la rama `feat/guia-rag` (sin probar en teléfonos reales).
 
 ## 1. Resumen
 
 - Habrá **dos aplicaciones**: la del **guía**, que edita toda la información, y la del **visitante**, que la lee y consulta con el chatbot.
 - La información se guarda en **un archivo `.md` por sección**. Las fotos y videos van aparte.
-- El contenido se publica en **Cloudflare R2**.
-- El visitante descarga el contenido cuando tiene conexión (por ejemplo, con Starlink) y lo usa sin señal.
+- El contenido se publica en **Cloudflare R2** cuando el guía tiene internet, y además se comparte por la **zona wifi del teléfono del guía**, sin internet (decisión del 2026-11-26).
+- El visitante descarga el contenido cuando tiene conexión (por ejemplo, con Starlink) y lo usa sin señal. Si no lo descargó, lo recibe en el parque desde el teléfono del guía.
+- La app del guía **no tiene usuario ni contraseña**, ni vence. Se instala en un celular o tableta dedicado (decisión del 2026-11-26).
+- El paquete viaja y se guarda **cifrado**; la llave llega al visitante en el QR del pase, que emite la app del guía (10 minutos mientras se prueba).
 - La aplicación es propia de la visita: el contenido se elimina pasado cierto tiempo.
 - Se mantiene Flutter en el celular. Un Arduino no puede ejecutar la aplicación ni el modelo. Una Raspberry Pi exigiría cambios.
 
@@ -149,15 +151,17 @@ El manifiesto lo genera la app. El orden de la lista es el orden en pantalla.
 
 - Nivel gratuito mensual: 10 GB de almacenamiento, 1 millón de escrituras y 10 millones de lecturas. La descarga no tiene costo. Fuente: [precios de R2](https://developers.cloudflare.com/r2/pricing/), consultada el 2026-11-26.
 - Pendiente de verificar: si pide tarjeta o PayPal para activarlo.
-- Requiere un Worker pequeño que valide la contraseña del guía antes de publicar. El visitante descarga sin cuenta.
+- Un Worker pequeño (`cloudflare/worker.js`) recibe la publicación con una **clave compartida** incluida en la app del guía. El visitante descarga sin cuenta.
 
 ### Flujo
 
-1. El guía abre su app y descarga la última versión.
-2. Edita y toca **Publicar**. Por ahora, cualquier guía publica directamente, sin aprobación.
-3. La app sube primero los archivos nuevos y al final el manifiesto.
-4. La app del visitante, con conexión, compara la versión.
-5. Descarga solo lo nuevo o cambiado, verifica el `sha256` y activa la versión. Si algo falla, conserva la anterior.
+1. El guía, con internet, toca **Descargar la última versión** en Compartir.
+2. Edita con el formulario y toca **Publicar en internet**. Cualquier guía publica directamente, sin aprobación.
+3. La app sube el paquete cifrado (`contenido.nev`) y el Worker escribe al final el manifiesto.
+4. La app del visitante, al abrirse con conexión, descarga el paquete y lo guarda cifrado, aun sin pase.
+5. En el parque, el visitante escanea el pase del guía: la app intenta primero la zona wifi del guía, después R2 y, si no hay red, abre el paquete guardado con la llave del pase.
+
+Implementación actual: un solo paquete con todas las secciones (no archivos sueltos) y sin descarga parcial. Las imágenes y videos todavía no viajan.
 
 Si dos guías publican al mismo tiempo, el segundo recibe un aviso, recarga y repite.
 
@@ -181,11 +185,14 @@ Fuente: Guion Ecoturístico UTON 2024, p. 5
 ```
 
 - La aplicación y la búsqueda leen el archivo completo. El visitante puede ver la ficha técnica y el detalle.
-- El modelo nunca recibe el archivo completo: solo 5 fragmentos relevantes a la pregunta, de cualquier sección y nivel.
+- El modelo nunca recibe el archivo completo: solo **3** fragmentos relevantes a la pregunta, de cualquier sección y nivel, de hasta 1.000 caracteres cada uno. Con 5 no caben en el contexto de 2048 tokens.
+- Si no se recupera ningún fragmento con fuente, no se llama al modelo: se responde que no hay información.
+- La fuente bajo la respuesta la pone la app a partir de los fragmentos, no el modelo.
+- Emergencias y medicamentos tienen respuesta fija, sin modelo. Los demás límites van en las instrucciones (`contenido/prompt_sistema.md`, condensado en `lib/core/assistant/responder.dart`).
 - Cada fragmento hereda las descripciones de sus títulos superiores. Sirven para encontrarlo; el chatbot responde con el texto.
 - La ruta evita confundir, por ejemplo, la flora de una estación con la de otra.
 - Se indexan el texto y la descripción de cada foto o video, no el archivo. La respuesta muestra la imagen del apartado.
-- Se empieza con la búsqueda por palabras clave que ya existe. Los embeddings se agregan solo si no alcanza.
+- Búsqueda por palabras clave con peso por rareza de cada palabra (IDF). Los embeddings se agregan solo si no alcanza.
 
 ## 6. Requisitos del reto que afectan el contenido
 
@@ -218,5 +225,6 @@ Detalle en `Docs/requisitos_tecnicos/`.
 
 - [ ] Definir cuándo vence el contenido. Opciones: fecha que fija el guía (recomendada), plazo fijo desde la descarga o salida del parque según GPS.
 - [ ] Confirmar el enfoque con la organización: `plan-reto.md` dice que solo el guía usa la app; este diseño tiene guía y visitante.
-- [ ] Escribir la especificación técnica y el plan de implementación.
-- [ ] Adaptar el código: hoy el contenido es un JSON incluido en la app (`assets/content/fichas.demo.json`).
+- [x] Adaptar el código: el contenido son las secciones `.md` de `contenido/secciones/`; ya no hay fichas JSON.
+- [ ] Crear el bucket y el Worker en Cloudflare (`cloudflare/README.md`).
+- [ ] Probar el flujo completo con dos teléfonos reales.

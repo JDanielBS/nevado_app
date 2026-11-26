@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../core/access/access_controller.dart';
-import '../core/content/card.dart';
 import '../core/content/content_controller.dart';
+import '../core/content/fuente_guia.dart';
 import '../core/settings/settings.dart';
 import '../features/access/access_scope.dart';
 import '../features/chat/chat_controller.dart';
@@ -13,10 +13,7 @@ import 'app_scope.dart';
 import 'theme.dart';
 
 class NevadoApp extends StatefulWidget {
-  const NevadoApp({super.key, this.cards = const [], this.settings, this.access, this.model, this.content});
-
-  /// Contenido de la guía incluido en la instalación.
-  final List<Ficha> cards;
+  const NevadoApp({super.key, this.settings, this.access, this.model, this.content, this.esGuia = false});
 
   /// Ajustes ya iniciados. Si se omiten se usan unos sin lectura de batería (pruebas).
   final Ajustes? settings;
@@ -27,8 +24,12 @@ class NevadoApp extends StatefulWidget {
   /// Estado del modelo, para mostrar la descarga en el inicio.
   final ChatController? model;
 
-  /// Fichas según el pase. Si se omite se usan [cards].
-  final ContentController? content;
+  /// Tarjetas y secciones: del pase en el visitante, de los archivos del guía en el guía.
+  /// Si se omite no hay contenido (pruebas).
+  final FuenteGuia? content;
+
+  /// App del guía: sin pase, con edición y con la pantalla Compartir.
+  final bool esGuia;
 
   @override
   State<NevadoApp> createState() => _NevadoAppState();
@@ -37,13 +38,11 @@ class NevadoApp extends StatefulWidget {
 class _NevadoAppState extends State<NevadoApp> {
   late final Ajustes _settings = widget.settings ?? Ajustes();
 
-  Widget _conContenido(Widget Function(List<Ficha> cards) construir) {
+  Widget _conContenido(Widget Function(FuenteGuia? content) construir) {
     final content = widget.content;
-    if (content == null) return construir(widget.cards);
-    return ContentScope(
-      controller: content,
-      child: ListenableBuilder(listenable: content, builder: (context, _) => construir(content.fichas)),
-    );
+    if (content == null) return construir(null);
+    final arbol = ListenableBuilder(listenable: content, builder: (context, _) => construir(content));
+    return content is ContentController ? ContentScope(controller: content, child: arbol) : arbol;
   }
 
   Widget _conAcceso(Widget child) {
@@ -61,8 +60,11 @@ class _NevadoAppState extends State<NevadoApp> {
       // El ámbito va por encima del navegador para que todas las pantallas lo vean.
       builder: (context, child) => _conAcceso(
         _conContenido(
-          (cards) => AppScope(
-            cards: cards,
+          (content) => AppScope(
+            emergencia: content?.emergencia ?? const [],
+            secciones: content?.secciones ?? const [],
+            indice: content?.indice,
+            esGuia: widget.esGuia,
             settings: _settings,
             child: ListenableBuilder(
               listenable: _settings,

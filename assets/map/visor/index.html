@@ -41,6 +41,12 @@
     .hoja[hidden] { display: none; }
     .hoja label { display: flex; align-items: center; gap: 12px; min-height: 44px; }
     .hoja input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--acento); }
+    #recorrido .paradas { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
+    #recorrido .paradas button { min-height: 44px; border-radius: 12px; border: 2px solid var(--tinta); text-align: left;
+      padding: 0 12px; font-weight: 600; background: #fff; }
+    #recorrido .paradas button[aria-pressed="true"] { background: #ff7a1a; color: var(--tinta); }
+    #recorrido h2 { margin: 0 0 4px; font-size: 17px; }
+    #recorrido .aviso { color: #9a3412; font-size: 12px; margin: 6px 0 0; }
     .muestra { margin-left: auto; width: 28px; height: 0; border-top: 3px solid; }
     #ficha h2 { margin: 0 44px 4px 0; font-size: 17px; }
     #ficha p { margin: 2px 0; font-size: 14px; }
@@ -58,7 +64,7 @@
     .maplibregl-ctrl-attrib { font-size: 9px; }
 
     /* Vista incrustada en la ruta: solo el terreno, sin controles que tapen el mapa pequeño. */
-    .mini header, .mini #botones, .mini #barra, .mini #capas, .mini #ficha,
+    .mini header, .mini #botones, .mini #barra, .mini #capas, .mini #ficha, .mini #recorrido,
     .mini .maplibregl-ctrl-bottom-left { display: none; }
   </style>
 </head>
@@ -82,6 +88,7 @@
       <label><input type="checkbox" data-capas="vias-borde,vias" checked> Carreteras <span class="muestra" style="color:#33284a"></span></label>
       <label><input type="checkbox" data-capas="senderos-borde,senderos" checked> Senderos <span class="muestra" style="color:#b3261e;border-top-style:dashed"></span></label>
       <label><input type="checkbox" data-capas="limite-halo,limite" checked> Límite del parque <span class="muestra" style="color:#2f8f5b"></span></label>
+      <label><input type="checkbox" data-capas="recorrido-borde,recorrido,estaciones-recorrido,estaciones-numero" checked> Recorrido <span class="muestra" style="color:#ff7a1a"></span></label>
       <label><input type="checkbox" data-capas="puntos" checked> Lugares</label>
       <label><input type="checkbox" data-capas="nombres" checked> Nombres de lugares</label>
       <label><input type="checkbox" id="ver-curvas" checked> Curvas de nivel (solo 3D)</label>
@@ -95,6 +102,20 @@
       </div>
     </section>
 
+    <section id="recorrido" class="flotante hoja" hidden aria-label="Recorrido Brisas – Valle de las Tumbas">
+      <h2>Recorrido sector norte</h2>
+      <label><input type="checkbox" id="solo-recorrido" checked> Ver solo la ruta (oculta lo demás)</label>
+      <div class="paradas" role="group" aria-label="Elegir parada">
+        <button data-parada="0" aria-pressed="true" style="grid-column: 1 / -1">Todo el recorrido</button>
+        <button data-parada="1" aria-pressed="false">1. Brisas</button>
+        <button data-parada="2" aria-pressed="false">2. Aguacerales</button>
+        <button data-parada="3" aria-pressed="false">3. Arenales</button>
+        <button data-parada="4" aria-pressed="false">4. Valle Lunar</button>
+        <button data-parada="5" aria-pressed="false">5. Valle de las Tumbas</button>
+      </div>
+      <p class="aviso">Paradas y camino aproximados (equipo y OpenStreetMap), sin validar en campo. No usar para navegar: sigue al guía.</p>
+    </section>
+
     <section id="ficha" class="flotante hoja" hidden aria-live="polite">
       <button id="cerrar" aria-label="Cerrar">&times;</button>
       <h2></h2><p class="detalle"></p>
@@ -104,6 +125,7 @@
     <nav id="barra" class="flotante">
       <button id="modo-3d" aria-pressed="true">Relieve 3D</button>
       <button id="modo-2d" aria-pressed="false">Mapa plano</button>
+      <button id="abrir-recorrido" aria-pressed="false" aria-expanded="false">Recorrido</button>
       <button id="abrir-capas" aria-pressed="false" aria-expanded="false">Capas</button>
     </nav>
   </main>
@@ -114,7 +136,8 @@
     // "mini" deja solo el terreno para el mapa incrustado en la ruta.
     const parametros = new URLSearchParams(location.search);
     if (parametros.has("app")) document.documentElement.classList.add("app");
-    if (parametros.has("mini")) document.documentElement.classList.add("mini");
+    const mini = parametros.has("mini");
+    if (mini) document.documentElement.classList.add("mini");
     const base = new URL("../", location.href).href;
     const caja = [-75.45, 4.75, -75.20, 5.10];
     const [oeste, sur, este, norte] = caja;
@@ -184,6 +207,7 @@
           terreno: dem, relieve: { ...dem },
           curvas: geojson("curvas"), vias: { ...geojson("vias"), attribution: "© OpenStreetMap" },
           agua: geojson("agua"), area: geojson("area_pnn"), limite: geojson("limite_pnn"), puntos: geojson("puntos"),
+          recorrido: geojson("recorrido"),
           mascara: { type: "geojson", data: mascara },
           marco: { type: "geojson", data: { type: "Feature", properties: {},
             geometry: { type: "LineString", coordinates: mascara.geometry.coordinates[1] } } }
@@ -227,6 +251,18 @@
                 ["alpine_hut", "wilderness_hut", "camp_site"], "icono-refugio", "hot_spring", "icono-termales",
                 "peak", "icono-pico", "icono-otro"],
               "icon-size": ancho(0.8, 1.15), "icon-allow-overlap": true, "icon-ignore-placement": true } },
+          // Recorrido del sector norte (maps/scripts/generar_recorrido.py). Sin verificar.
+          { id: "recorrido-borde", type: "line", source: "recorrido", filter: ["==", tipo, "tramo"], layout: redondo,
+            paint: { "line-color": TINTA, "line-width": ancho(6, 12) } },
+          { id: "recorrido", type: "line", source: "recorrido", filter: ["==", tipo, "tramo"], layout: redondo,
+            paint: { "line-color": "#ff7a1a", "line-width": ancho(3.5, 8) } },
+          { id: "estaciones-recorrido", type: "circle", source: "recorrido", filter: ["==", tipo, "estacion"],
+            paint: { "circle-radius": ancho(9, 14), "circle-color": "#ff7a1a",
+              "circle-stroke-color": TINTA, "circle-stroke-width": 3 } },
+          { id: "estaciones-numero", type: "symbol", source: "recorrido", filter: ["==", tipo, "estacion"],
+            layout: { "text-field": ["to-string", ["get", "orden"]], "text-size": ancho(11, 15),
+              "text-allow-overlap": true, "text-ignore-placement": true },
+            paint: { "text-color": TINTA } },
           { id: "mascara", type: "fill", source: "mascara", paint: { "fill-color": EXTERIOR, "fill-antialias": false } },
           { id: "marco", type: "line", source: "marco", paint: { "line-color": TINTA, "line-width": 3 } }
         ]
@@ -340,12 +376,26 @@
       bridleway: "Camino de herradura", steps: "Escalones" };
     function abrirFicha(titulo, detalle) {
       mostrarCapas(false);
+      mostrarRecorrido(false);
       el("ficha").querySelector("h2").textContent = titulo;
       el("ficha").querySelector(".detalle").textContent = detalle;
       el("ficha").hidden = false;
     }
     mapa.on("click", (e) => {
       const margen = [[e.point.x - 12, e.point.y - 12], [e.point.x + 12, e.point.y + 12]];
+      const estacion = mapa.queryRenderedFeatures(margen, { layers: ["estaciones-recorrido"] })[0];
+      if (estacion) {
+        const p = estacion.properties;
+        abrirFicha(`${p.orden}. ${p.nombre}`, `Parada del recorrido · Ubicación aproximada, sin validar en campo (${p.fuente})`);
+        return;
+      }
+      const tramo = mapa.queryRenderedFeatures(margen, { layers: ["recorrido"] })[0];
+      if (tramo) {
+        const p = tramo.properties;
+        abrirFicha(`Tramo ${p.desde_nombre} – ${p.hasta_nombre}`, "Trazado tomado de OpenStreetMap, sin verificar. "
+          + "Sigue siempre las indicaciones del guía.");
+        return;
+      }
       const hallado = mapa.queryRenderedFeatures(margen, { layers: ["puntos"] })[0]
         || mapa.queryRenderedFeatures(margen, { layers: ["senderos"] })[0];
       if (!hallado) { el("ficha").hidden = true; mostrarCapas(false); return; }
@@ -391,7 +441,45 @@
       const altura = mapa.queryTerrainElevation(mapa.getCenter());
       if (altura) mapa.setCenterElevation(altura);
     }
+    function mostrarRecorrido(ver) {
+      el("recorrido").hidden = !ver;
+      el("abrir-recorrido").setAttribute("aria-pressed", ver);
+      el("abrir-recorrido").setAttribute("aria-expanded", ver);
+      if (ver) { el("ficha").hidden = true; mostrarCapas(false); }
+    }
+    // Capas que se ocultan con "Ver solo la ruta". Al quitarlo vuelven según sus casillas en Capas.
+    const OTRAS_CAPAS = ["vias-borde,vias", "senderos-borde,senderos", "puntos", "nombres"];
+    let paradaElegida = 0;
+    let datosRecorrido = null;
+    async function verParada(n) {
+      paradaElegida = n;
+      document.querySelectorAll("[data-parada]").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.parada === n)));
+      // Una parada muestra el tramo que llega a ella y la parada anterior; "Todo" muestra el camino completo.
+      const tramo = n ? ["all", ["==", tipo, "tramo"], ["==", ["get", "hasta"], n]] : ["==", tipo, "tramo"];
+      const paradas = n ? ["all", ["==", tipo, "estacion"], ["in", ["get", "orden"], ["literal", [n - 1, n]]]]
+        : ["==", tipo, "estacion"];
+      ["recorrido-borde", "recorrido"].forEach((c) => mapa.setFilter(c, tramo));
+      ["estaciones-recorrido", "estaciones-numero"].forEach((c) => mapa.setFilter(c, paradas));
+      visible(["recorrido-borde", "recorrido", "estaciones-recorrido", "estaciones-numero"], true);
+      aplicarSoloRecorrido();
+      datosRecorrido ??= await fetch(`${base}salida/recorrido.geojson`).then((r) => r.json());
+      const elegidos = datosRecorrido.features.filter((f) => n === 0 ? true
+        : (f.properties.tipo === "tramo" ? f.properties.hasta === n : [n - 1, n].includes(f.properties.orden)));
+      const puntos = elegidos.flatMap((f) => f.geometry.type === "Point" ? [f.geometry.coordinates] : f.geometry.coordinates);
+      if (!puntos.length) return;
+      const limites = puntos.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(puntos[0], puntos[0]));
+      mapa.fitBounds(limites, { padding: { top: 110, bottom: 120, left: 50, right: 70 }, maxZoom: 15.5, duration: 700 });
+    }
+    function aplicarSoloRecorrido() {
+      const solo = el("solo-recorrido").checked;
+      OTRAS_CAPAS.forEach((capas) => {
+        const casilla = document.querySelector(`[data-capas="${capas}"]`);
+        visible(capas.split(","), !solo && (!casilla || casilla.checked));
+      });
+    }
     function mostrarCapas(ver) {
+      if (ver) { el("recorrido").hidden = true; el("abrir-recorrido").setAttribute("aria-pressed", false);
+        el("abrir-recorrido").setAttribute("aria-expanded", false); }
       el("capas").hidden = !ver;
       el("abrir-capas").setAttribute("aria-pressed", ver);
       el("abrir-capas").setAttribute("aria-expanded", ver);
@@ -400,6 +488,17 @@
     el("modo-3d").onclick = () => cambiarModo(true);
     el("modo-2d").onclick = () => cambiarModo(false);
     el("abrir-capas").onclick = () => mostrarCapas(el("capas").hidden);
+    el("abrir-recorrido").onclick = () => {
+      const abrir = el("recorrido").hidden;
+      mostrarRecorrido(abrir);
+      if (abrir) verParada(paradaElegida);
+    };
+    // Al elegir, el panel se cierra para que se vea el tramo. "Recorrido" lo vuelve a abrir.
+    document.querySelectorAll("[data-parada]").forEach((b) => b.onclick = () => {
+      mostrarRecorrido(false);
+      verParada(+b.dataset.parada);
+    });
+    el("solo-recorrido").onchange = aplicarSoloRecorrido;
     el("cerrar").onclick = () => { el("ficha").hidden = true; };
     el("acercar").onclick = () => mapa.zoomIn();
     el("alejar").onclick = () => mapa.zoomOut();

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_edge_ai/flutter_edge_ai.dart';
 import 'package:flutter_edge_ai_litertlm/flutter_edge_ai_litertlm.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'device_support.dart';
 import 'llm_engine.dart';
@@ -15,8 +16,11 @@ class EdgeLlmEngine implements LlmEngine {
   static const _token = String.fromEnvironment('HUGGINGFACE_TOKEN');
   static Future<void>? _initialized;
 
-  // ponytail: ruta fija de Android; usar path_provider si se publica en más perfiles o plataformas.
-  static const carpetaModelos = '/storage/emulated/0/Android/data/co.nevados.app/files';
+  /// Carpeta externa de la app (`Android/data/<paquete>/files`), a la que se copian modelos por cable.
+  /// Depende del paquete: la app del guía usa `co.nevados.app.guia`.
+  static Future<String> carpetaModelos() async =>
+      (_carpeta ??= (await getExternalStorageDirectory() ?? await getApplicationSupportDirectory()).path);
+  static String? _carpeta;
 
   final _variant = LiteRtLmModels.gemma3_1bIt.q4Ekv4096;
   InferenceModel? _model;
@@ -52,7 +56,7 @@ class EdgeLlmEngine implements LlmEngine {
 
   /// Instala el modelo si se copió por USB a la carpeta externa de la app.
   Future<void> _instalarCopiaLocal() async {
-    final copia = File('$carpetaModelos/${_variant.file.installFilename}');
+    final copia = File('${await carpetaModelos()}/${_variant.file.installFilename}');
     if (!await copia.exists()) return;
     if (await FlutterEdgeAi.isModelInstalled(_variant.file.installFilename) && FlutterEdgeAi.hasActiveModel()) return;
     await FlutterEdgeAi.installModel(modelType: _variant.modelType, fileType: ModelFileType.litertlm)
@@ -77,6 +81,10 @@ class EdgeLlmEngine implements LlmEngine {
       return false;
     }
   }
+
+  @override
+  Future<String?> rutaInstalada() async =>
+      await isInstalled() ? FlutterEdgeAi.getModelPath(_variant.file.installFilename) : null;
 
   @override
   Stream<int> install({Uri? origen}) {

@@ -42,6 +42,8 @@ dependencies:
   battery_plus: ^7.1.2
   web: ^1.1.2
   cryptography: ^2.9.0
+  # Dibuja el QR del pase en la app del guía. Ya estaba en el proyecto para las herramientas.
+  qr: ^4.0.1
   mobile_scanner: ^7.5.0
   flutter_secure_storage: ^11.2.0
   path_provider: ^2.1.6
@@ -56,13 +58,14 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
-  qr: ^4.0.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
 # The following section is specific to Flutter packages.
 flutter:
+  # "flutter run" y "flutter build" sin --flavor compilan la app del visitante.
+  default-flavor: visitante
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
@@ -71,10 +74,14 @@ flutter:
 
   # Lista generada por tool/sync_map_assets.py: no editar a mano.
   assets:
-    - assets/conocimiento/
-    - assets/conocimiento/secciones/
     # recursos:inicio
     - assets/content/
+    - assets/imagenes/
+    - assets/imagenes/01_brisas/
+    - assets/imagenes/02_aguacerales/
+    - assets/imagenes/03_arenales/
+    - assets/imagenes/04_valle_lunar/
+    - assets/imagenes/05_valle_de_las_tumbas/
     - assets/map/salida/
     - assets/map/salida/elevacion/10/297/
     - assets/map/salida/elevacion/10/298/
@@ -89,6 +96,10 @@ flutter:
     - assets/map/visor/
     - assets/map/visor/lib/
     # recursos:fin
+    # Contenido inicial de la guía: solo en la app del guía. El visitante lo recibe cifrado.
+    - path: contenido/secciones/
+      flavors:
+        - guia
 
   # Fuentes del diseño (licencia OFL, ver fonts/). Empaquetadas para funcionar sin internet.
   fonts:

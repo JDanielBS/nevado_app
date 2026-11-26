@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
 import '../../core/ai/edge_llm_engine.dart';
-import '../../core/content/card.dart';
 import '../../core/ai/knowledge_base.dart';
 import '../../core/ui/palette.dart';
 import '../../core/ui/widgets.dart';
@@ -12,19 +11,19 @@ import 'chat_controller.dart';
 import 'rag_check.dart';
 import 'reply_view.dart';
 
+/// Controlador único de la app: la descarga sigue aunque se salga de la pantalla.
 final chatDeLaApp = ChatController(EdgeLlmEngine());
 
+/// Búsqueda por palabras y por significado sobre el contenido que tenga la app en ese momento.
 final conocimiento = KnowledgeBase();
 
-const preguntasSugeridas = [
-  '¿Puedo ir al cráter?',
-  'Me duele la cabeza',
-  '¿Puedo llevarme una roca?',
-];
+/// Preguntas sugeridas bajo la conversación.
+const preguntasSugeridas = ['¿Puedo ir al cráter?', 'Me duele la cabeza', '¿Puedo llevarme una roca?'];
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key, this.controller});
 
+  /// Solo se pasa en pruebas. La app usa uno compartido.
   final ChatController? controller;
 
   @override
@@ -39,38 +38,42 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _chat.enPantalla = true;
+    // Después del primer cuadro: start() puede notificar de inmediato.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // En modo ahorro no se carga el modelo.
       if (!mounted || _batterySaver) return;
-      // Pruebas (controlador propio): sin índice ni modelo de embeddings.
-      if (widget.controller == null) unawaited(conocimiento.indexar());
+      // Pruebas (controlador propio): sin modelo de embeddings.
+      final indice = context.getInheritedWidgetOfExactType<AppScope>()?.indice;
+      if (widget.controller == null && indice != null) unawaited(conocimiento.indexar(indice));
       _chat.start();
     });
   }
 
-  bool get _batterySaver =>
-      AppScope.maybeOf(context)?.settings.ahorroActivo ?? false;
+  bool get _batterySaver => context.getInheritedWidgetOfExactType<AppScope>()?.settings.ahorroActivo ?? false;
 
-  void _ask([String? suggested]) {
-    final question = suggested ?? _input.text;
-    final cards = AppScope.maybeOf(context)?.cards ?? const <Ficha>[];
-    _askWithRetriever(question, cards);
-    if (suggested == null) _input.clear();
+  void _ask([String? texto]) {
+    unawaited(_preguntar(texto ?? _input.text));
+    if (texto == null) _input.clear();
   }
 
-  Future<void> _askWithRetriever(String question, List<Ficha> cards) async {
-    if (question.trim() == '/prueba') {
-      final resumen = await autoprueba(conocimiento);
-      _chat.informar(question, resumen);
+  Future<void> _preguntar(String pregunta) async {
+    final scope = context.getInheritedWidgetOfExactType<AppScope>();
+    final indice = scope?.indice;
+    if (pregunta.trim() == '/prueba' && indice != null) {
+      await conocimiento.indexar(indice);
+      _chat.informar(pregunta, await autoprueba(conocimiento, indice));
       return;
     }
-    await conocimiento.cargar();
-    if (conocimiento.plantilla.isNotEmpty) _chat.plantilla = conocimiento.plantilla;
-    final fragments = await conocimiento.retrieve(question);
+    // En pruebas (controlador propio) solo por palabras: el chat busca en el índice.
+    final fragmentos = widget.controller == null && indice != null && !_chat.answering
+        ? await conocimiento.buscar(indice, pregunta)
+        : null;
     if (!mounted) return;
     await _chat.ask(
-      question,
-      cards: cards,
-      fragments: fragments,
+      pregunta,
+      emergencia: scope?.emergencia ?? const [],
+      indice: indice,
+      fragmentos: fragmentos,
       batterySaver: _batterySaver,
     );
   }
@@ -78,6 +81,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     _input.dispose();
+    // Al salir se recupera la memoria del modelo; vuelve a cargarse al entrar.
     _chat.enPantalla = false;
     unawaited(_chat.release());
     super.dispose();
@@ -87,6 +91,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     final tema = TemaScope.of(context);
     final saver = AppScope.maybeOf(context)?.settings.ahorroActivo ?? false;
+    // Material propio: la pantalla también se muestra sola (pruebas) y el campo de texto lo necesita.
     return Material(
       type: MaterialType.transparency,
       child: ListenableBuilder(
@@ -94,13 +99,11 @@ class _ChatScreenState extends State<ChatScreen> {
         builder: (context, _) {
           final estado = [
             if (saver)
-              const Linea(
-                'Modo ahorro: respondo solo con las fichas, sin modelo de IA.',
-              ),
+              const Linea('Modo ahorro: respondo con el texto de la guía, sin modelo de IA.')
+            else
+              ..._content(),
             if (conocimiento.estado.value.isNotEmpty) Linea(conocimiento.estado.value),
-            if (_chat.error != null)
-              Linea(_chat.error!, color: Colores.aviso, negrita: true),
-            ..._content(),
+            if (_chat.error != null) Linea(_chat.error!, color: Colores.aviso, negrita: true),
           ];
           final turnos = _chat.turnos;
           return Padding(
@@ -110,57 +113,35 @@ class _ChatScreenState extends State<ChatScreen> {
               spacing: 10,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: Colores.superficie,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: tema.acento, width: 2),
                   ),
                   child: const Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(
-                          text: 'Guía virtual · sin conexión\n',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        TextSpan(
-                          text:
-                              'Experimental: puede equivocarse. Responde con las fichas del parque y '
-                              'no informa el estado actual del volcán.',
-                        ),
-                      ],
-                    ),
-                    style: TextStyle(
-                      fontSize: 14,
-                      height: 1.35,
-                      color: Colores.texto,
-                    ),
+                    TextSpan(children: [
+                      TextSpan(text: 'Guía virtual · sin conexión\n', style: TextStyle(fontWeight: FontWeight.w700)),
+                      TextSpan(
+                        text: 'Experimental: puede equivocarse. Responde con la información de la guía, '
+                            'cita la fuente y no informa el estado actual del volcán.',
+                      ),
+                    ]),
+                    style: TextStyle(fontSize: 14, height: 1.35, color: Colores.texto),
                   ),
                 ),
                 Expanded(
+                  // Invertida para que lo más reciente quede abajo, junto al campo de texto.
                   child: ListView(
                     reverse: true,
                     children: [
                       if (estado.isNotEmpty)
                         Caja(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            spacing: 8,
-                            children: estado,
-                          ),
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, spacing: 8, children: estado),
                         ),
                       for (final (i, turno) in turnos.indexed.toList().reversed)
-                        TurnoView(
-                          turno: turno,
-                          respondiendo:
-                              _chat.answering && i == turnos.length - 1,
-                        ),
-                      const Burbuja(
-                        texto: 'Hola. Pregúntame sobre lo que observas en la ruta.',
-                      ),
+                        TurnoView(turno: turno, respondiendo: _chat.answering && i == turnos.length - 1),
+                      const Burbuja(texto: 'Hola. Pregúntame sobre lo que observas en la ruta.'),
                     ],
                   ),
                 ),
@@ -170,9 +151,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   children: [
                     for (final pregunta in preguntasSugeridas)
                       OutlinedButton(
-                        onPressed: _chat.answering
-                            ? null
-                            : () => _ask(pregunta),
+                        onPressed: _chat.answering ? null : () => _ask(pregunta),
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size(44, 44),
                           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -180,11 +159,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           foregroundColor: tema.acento,
                           side: BorderSide(color: tema.acento, width: 2),
                           shape: const StadiumBorder(),
-                          textStyle: const TextStyle(
-                            fontFamily: Fuentes.cuerpo,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                          ),
+                          textStyle: const TextStyle(fontFamily: Fuentes.cuerpo, fontSize: 13, fontWeight: FontWeight.w700),
                         ),
                         child: Text(pregunta),
                       ),
@@ -203,9 +178,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           if (!_chat.answering) _ask();
                         },
                         style: const TextStyle(fontSize: 16),
-                        decoration: const InputDecoration(
-                          hintText: 'Escribe tu pregunta',
-                        ),
+                        decoration: const InputDecoration(hintText: 'Escribe tu pregunta'),
                       ),
                     ),
                     BotonPrincipal(
@@ -223,35 +196,26 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   List<Widget> _content() => switch (_chat.phase) {
-    ChatPhase.checking => const [Center(child: CircularProgressIndicator())],
-    ChatPhase.unsupported => const [],
-    ChatPhase.noModel =>
-      _chat.canDownload
-          ? [
-              const Linea(
-                'Para preguntas que no estén en las fichas, la guía puede usar un modelo de IA de 584 MB. Descárgalo con wifi antes de subir.',
-              ),
-              BotonPrincipal(
-                texto: _chat.error == null ? 'Descargar' : 'Reintentar',
-                onPressed: _chat.download,
-              ),
-            ]
-          : const [
-              Linea(
-                'El modelo no está instalado. Conéctate a la red de la estación y escanea el pase.',
-              ),
-            ],
-    ChatPhase.downloading => [
-      Linea('Descargando ${_chat.progress} %'),
-      LinearProgressIndicator(value: _chat.progress / 100),
-    ],
-    ChatPhase.loading => const [
-      Linea('Cargando el modelo…'),
-      LinearProgressIndicator(),
-    ],
-    ChatPhase.ready => const [],
-    ChatPhase.failed => [
-      BotonSecundario(texto: 'Reintentar', onPressed: _chat.retry),
-    ],
-  };
+        ChatPhase.checking => const [Center(child: CircularProgressIndicator())],
+        ChatPhase.unsupported => const [],
+        ChatPhase.noModel => _chat.canDownload
+            ? [
+                const Linea('Para responder con tus palabras, la guía usa un modelo de IA de 584 MB. '
+                    'Descárgalo antes de subir, con internet o en la red del guía.'),
+                BotonPrincipal(
+                  texto: _chat.error == null ? 'Descargar' : 'Reintentar',
+                  onPressed: _chat.download,
+                ),
+              ]
+            : const [
+                Linea('El modelo no está instalado. Conéctate a la zona wifi del guía y escanea el pase.'),
+              ],
+        ChatPhase.downloading => [
+            Linea('Descargando ${_chat.progress} % (desde ${_chat.fuenteDescarga ?? 'internet'})'),
+            LinearProgressIndicator(value: _chat.progress / 100),
+          ],
+        ChatPhase.loading => const [Linea('Cargando el modelo…'), LinearProgressIndicator()],
+        ChatPhase.ready => const [],
+        ChatPhase.failed => [BotonSecundario(texto: 'Reintentar', onPressed: _chat.retry)],
+      };
 }

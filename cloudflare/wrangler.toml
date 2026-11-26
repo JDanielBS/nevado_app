@@ -1,0 +1,8 @@
+# Configuración del Worker. Ver cloudflare/README.md.
+name = "nevados-contenido"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+
+[[r2_buckets]]
+binding = "CONTENIDO"
+bucket_name = "nevados-contenido"

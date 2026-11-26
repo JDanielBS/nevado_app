@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="rutas" xmlns="http://www.topografix.com/GPX/1/1">
+<metadata><name>Brisas - Valle de las Tumbas: 5 paradas</name><desc>Paradas aproximadas, sin trazado de la via, sin validar en campo. No usar para navegar.</desc></metadata>
+<wpt lat="4.933333" lon="-75.349722"><name>1 Brisas</name><desc>Fuente: Parques Nacionales 2023</desc></wpt>
+<wpt lat="4.927499" lon="-75.350488"><name>2 Aguacerales</name><desc>Fuente: Wikiloc 42086596 (usuario, 2019)</desc></wpt>
+<wpt lat="4.922831" lon="-75.355481"><name>3 Arenales</name><desc>Fuente: Dossier Geoparque Volcan del Ruiz</desc></wpt>
+<wpt lat="4.916864" lon="-75.357610"><name>4 Lunares (Valle lunar)</name><desc>Fuente: Wikiloc 42086596 (usuario, 2019)</desc></wpt>
+<wpt lat="4.910528" lon="-75.355995"><name>5 Valle de las Tumbas (Valle de la Soledad)</name><desc>Fuente: Wikiloc 42086596 (usuario, 2019)</desc></wpt>
+</gpx>
