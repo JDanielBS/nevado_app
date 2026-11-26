@@ -98,3 +98,8 @@ maps/salida/
 # Contexto local para agentes (no subir)
 /.agents/
 /AGENTS.md
+
+# Documentación 
+/Docs/requisitos_tecnicos
+# Contenido de la guia (uso restringido, no subir al repo publico)
+/contenido/
