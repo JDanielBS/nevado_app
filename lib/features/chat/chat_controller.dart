@@ -51,7 +51,18 @@ class ChatController extends ChangeNotifier {
   /// Conversación completa, de la más antigua a la más reciente.
   final List<Turno> turnos = [];
   bool answering = false;
-  bool _started = false;
+  Future<void>? _preparation;
+
+  /// Servidor de la estación desde el que descargar el modelo.
+  Uri? origen;
+
+  /// El modelo ya se comprobó o se encontró instalado.
+  bool instalado = false;
+
+  /// La pantalla del asistente está abierta: no conviene liberar el modelo.
+  bool enPantalla = false;
+
+  bool get canDownload => origen != null || engine.canDownload;
 
   void _set(ChatPhase next, [String? message]) {
     phase = next;
@@ -59,9 +70,9 @@ class ChatController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> start() async {
-    if (_started) return;
-    _started = true;
+  Future<void> start() => _preparation ??= _start();
+
+  Future<void> _start() async {
     final reason = engine.unsupportedReason();
     if (reason != null) return _set(ChatPhase.unsupported, reason);
     await _prepare();
@@ -69,6 +80,38 @@ class ChatController extends ChangeNotifier {
 
   Future<void> retry() async {
     if (phase == ChatPhase.failed) await _prepare();
+  }
+
+  /// Libera la memoria del modelo al salir de la pantalla y deja el asistente
+  /// listo para cargarlo de nuevo con [start].
+  ///
+  /// El modelo queda instalado en disco: aquí solo se recupera su memoria.
+  Future<void> release() async {
+    if (phase != ChatPhase.ready) return;
+    _preparation = null;
+    phase = ChatPhase.checking;
+    await engine.unload();
+  }
+
+  /// Descarga el modelo desde [url] si todavía no está instalado, sin necesidad de abrir el asistente.
+  Future<void> provision(Uri url) async {
+    origen = url;
+    notifyListeners();
+    if (engine.unsupportedReason() != null) return start();
+    try {
+      if (await engine.isInstalled()) {
+        instalado = true;
+        return notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Asistente: $e');
+      return _set(ChatPhase.failed, 'No se pudo revisar el modelo.');
+    }
+    await start();
+    if (phase == ChatPhase.failed) await retry();
+    await download();
+    // Se recupera la memoria si nadie está usando el asistente.
+    if (!enPantalla) await release();
   }
 
   Future<void> _prepare() async {
@@ -87,7 +130,7 @@ class ChatController extends ChangeNotifier {
     progress = 0;
     _set(ChatPhase.downloading);
     try {
-      await for (final percent in engine.install()) {
+      await for (final percent in engine.install(origen: origen)) {
         progress = percent;
         notifyListeners();
       }
@@ -105,8 +148,10 @@ class ChatController extends ChangeNotifier {
     _set(ChatPhase.loading);
     try {
       await engine.load();
+      instalado = true;
       _set(ChatPhase.ready);
     } on CorruptModelException {
+      instalado = false;
       _set(
         ChatPhase.noModel,
         'El archivo del modelo está dañado y se borró. Descárgalo de nuevo.',

@@ -46,18 +46,28 @@ class EdgeLlmEngine implements LlmEngine {
   @override
   Future<bool> isInstalled() async {
     await _init();
-    return FlutterEdgeAi.isModelInstalled(_variant.file.installFilename);
+    // También debe estar marcado como activo; el paquete lo recuerda entre reinicios.
+    return await FlutterEdgeAi.isModelInstalled(_variant.file.installFilename) &&
+        FlutterEdgeAi.hasActiveModel();
   }
 
   @override
-  Stream<int> install() {
+  Stream<int> install({Uri? origen}) {
     final progress = StreamController<int>();
     Future<void> run() async {
       try {
         await _init();
-        await FlutterEdgeAi.installModelFromCatalog(
-          _variant,
-        ).withProgress(progress.add).install();
+        final builder = origen == null
+            ? FlutterEdgeAi.installModelFromCatalog(_variant)
+            : FlutterEdgeAi.installModel(
+                modelType: _variant.modelType,
+                fileType: ModelFileType.litertlm,
+              ).fromNetwork(
+                origen.toString(),
+                filename: _variant.file.installFilename,
+                expectedSize: _variant.file.sizeBytes,
+              );
+        await builder.withProgress(progress.add).install();
       } catch (e, s) {
         progress.addError(e, s);
       } finally {
@@ -79,12 +89,18 @@ class EdgeLlmEngine implements LlmEngine {
       file.sha256,
       onCorrupt: () => FlutterEdgeAi.uninstallModel(file.installFilename),
     );
-    // Con el archivo ya instalado no descarga: solo lo marca como activo.
-    await FlutterEdgeAi.installModelFromCatalog(_variant).install();
     _model = await FlutterEdgeAi.getActiveModel(
       maxTokens: 2048,
       preferredBackend: PreferredBackend.cpu,
     );
+  }
+
+  @override
+  Future<void> unload() async {
+    final model = _model;
+    if (model == null) return;
+    _model = null;
+    await model.close();
   }
 
   @override

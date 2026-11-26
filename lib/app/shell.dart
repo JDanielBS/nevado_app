@@ -4,6 +4,7 @@ import '../core/route/estaciones.dart';
 import '../core/ui/palette.dart';
 import '../core/ui/widgets.dart';
 import '../features/about/about_screen.dart';
+import '../features/access/access_gate.dart';
 import '../features/chat/chat_screen.dart';
 import '../features/route/route_screen.dart';
 import '../features/safety/safety_screen.dart';
@@ -103,18 +104,20 @@ class _KumandayShellState extends State<KumandayShell> {
   }
 
   Widget _contenido() => switch (_seccion) {
-        Seccion.ruta => RouteScreen(actual: _actual, onAbrir: _abrirEstacion),
-        Seccion.ficha => StationScreen(
-            estacion: estaciones[_seleccionada],
-            esActual: _actual == _seleccionada,
-            pestana: _pestana,
-            onPestana: (p) => setState(() => _pestana = p),
-            onEstoyAqui: () => setState(() => _actual = _seleccionada),
-            onVolver: () => _ir(Seccion.ruta),
-            anterior: _vecina(_seleccionada - 1),
-            siguiente: _vecina(_seleccionada + 1),
-          ),
-        Seccion.guia => const ChatScreen(),
+        Seccion.ruta => AccessGate(child: RouteScreen(actual: _actual, onAbrir: _abrirEstacion)),
+        Seccion.ficha => AccessGate(
+              child: StationScreen(
+                estacion: estaciones[_seleccionada],
+                esActual: _actual == _seleccionada,
+                pestana: _pestana,
+                onPestana: (p) => setState(() => _pestana = p),
+                onEstoyAqui: () => setState(() => _actual = _seleccionada),
+                onVolver: () => _ir(Seccion.ruta),
+                anterior: _vecina(_seleccionada - 1),
+                siguiente: _vecina(_seleccionada + 1),
+              ),
+            ),
+        Seccion.guia => const AccessGate(child: ChatScreen()),
         Seccion.seguridad => const SafetyScreen(),
         Seccion.acerca => const AboutScreen(),
       };

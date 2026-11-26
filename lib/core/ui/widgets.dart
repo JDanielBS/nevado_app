@@ -300,3 +300,15 @@ class Linea extends StatelessWidget {
         ),
       );
 }
+
+/// Título de una tarjeta.
+class TituloCaja extends StatelessWidget {
+  const TituloCaja(this.texto, {super.key});
+  final String texto;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: Espacio.s),
+        child: Text(texto, style: estiloTitulo(21)),
+      );
+}

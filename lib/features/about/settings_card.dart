@@ -37,10 +37,11 @@ class SettingsCard extends StatelessWidget {
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Modo ahorro de batería'),
-            subtitle: Text('Batería: ${porcentaje(settings.nivelBateria)}. Se activa solo con 20 % o menos.'),
-            value: settings.ahorroManual,
+            subtitle: Text(
+                'Batería: ${porcentaje(settings.nivelBateria)}. Se activa solo con 20 % o menos; puedes desactivarlo.'),
+            value: settings.ahorroActivo,
             activeTrackColor: TemaScope.of(context).acento,
-            onChanged: (value) => settings.ahorroManual = value,
+            onChanged: settings.elegirAhorro,
           ),
           if (settings.ahorroActivo) ...const [
             Linea('Para cuidar la batería:'),

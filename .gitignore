@@ -95,5 +95,15 @@ maps/geofabrik/
 maps/WDPA_*/
 maps/salida/
 
-
 /assets/imagenes
+# Contexto local para agentes (no subir)
+/.agents/
+/AGENTS.md
+
+# Documentación 
+/Docs/requisitos_tecnicos
+# Contenido de la guia (uso restringido, no subir al repo publico)
+/contenido/
+
+# Archivos que reparte la estación (modelo y copias del APK)
+/estacion/

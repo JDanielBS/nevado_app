@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../app/app_scope.dart';
 import '../../core/route/estaciones.dart';
 import '../../core/ui/palette.dart';
+import '../access/access_gate.dart';
+import '../chat/model_provisioning.dart';
 import '../map/map_screen.dart';
 // Se mantiene el mapa actual (visor MapLibre offline).
 import '../map/map_view_io.dart' if (dart.library.js_interop) '../map/map_view_web.dart';
@@ -23,10 +25,12 @@ class RouteScreen extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       children: [
+        const AccessCard(),
+        const ModelStatus(),
         _MarcoMapa(
           plano: plano,
           onAmpliar: () => Navigator.of(context).push(MaterialPageRoute<void>(
-            builder: (_) => TemaScope(tema: tema, child: const MapScreen()),
+            builder: (_) => TemaScope(tema: tema, child: const AccessGate(title: 'Mapa', child: MapScreen())),
           )),
         ),
         const SizedBox(height: 12),
