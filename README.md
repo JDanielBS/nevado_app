@@ -32,3 +32,21 @@ fvm flutter run --dart-define-from-file=.env
 En VS Code, agrega a `.vscode/settings.json`: `"dart.flutterRunAdditionalArgs": ["--dart-define-from-file=.env"]`.
 
 El token queda dentro del APK. No compartas ni publiques un APK compilado así.
+
+## Guía sin conexión
+
+| Función | Dónde |
+|---|---|
+| Emergencias y fichas | `lib/features/emergency/`, `lib/features/cards/`, `assets/content/` |
+| Reglas de seguridad y búsqueda local | `lib/core/safety/`, `lib/core/search/`, `lib/core/assistant/` |
+| Ubicación GPS bajo demanda | `lib/features/location/`, `lib/core/location/` |
+| Mapa | `lib/features/map/`, `assets/map/`, `maps/` |
+| Modo ahorro y tamaño de texto | `lib/core/settings/` |
+| Comparación de modelos | `eval/` |
+
+El asistente decide en este orden: reglas de emergencia y de límites, fichas y, solo si no hay nada, el modelo
+(que no se usa en modo ahorro). El contenido actual es de demostración y **no está verificado**.
+
+Pruebas: `fvm flutter test` y `fvm flutter analyze`.
+
+Los documentos de estado y pendientes están en `Docs/guia/`.

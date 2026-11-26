@@ -82,3 +82,15 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Modelos de IA: se descargan aparte
+*.gguf
+*.litertlm
+*.task
+*.onnx
+
+# Datos crudos y generados del mapa (pesados; ver maps/README.md)
+maps/dem/
+maps/geofabrik/
+maps/WDPA_*/
+maps/salida/

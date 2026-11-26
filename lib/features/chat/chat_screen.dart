@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../app/app_page.dart';
+import '../../app/app_scope.dart';
 import '../../core/ai/edge_llm_engine.dart';
 import 'chat_controller.dart';
+import 'reply_view.dart';
 
 final _appController = ChatController(EdgeLlmEngine());
 
@@ -23,8 +26,20 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     // Después del primer cuadro: start() puede notificar de inmediato.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _chat.start());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // En modo ahorro no se carga el modelo.
+      if (mounted && !_batterySaver) _chat.start();
+    });
   }
+
+  bool get _batterySaver =>
+      context.getInheritedWidgetOfExactType<AppScope>()?.settings.ahorroActivo ?? false;
+
+  void _ask() => _chat.ask(
+    _input.text,
+    cards: context.getInheritedWidgetOfExactType<AppScope>()?.cards ?? const [],
+    batterySaver: _batterySaver,
+  );
 
   @override
   void dispose() {
@@ -34,30 +49,54 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Asistente')),
-      body: SafeArea(
-        child: ListenableBuilder(
-          listenable: _chat,
-          builder: (context, _) => ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              const Text(
-                'Experimental. Puede dar información falsa. '
-                'En una emergencia usa Emergencias.',
-                style: TextStyle(fontWeight: FontWeight.bold),
+    final saver = AppScope.maybeOf(context)?.settings.ahorroActivo ?? false;
+    return AppPage(
+      title: 'Asistente',
+      body: ListenableBuilder(
+        listenable: _chat,
+        builder: (context, _) => ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            const Text(
+              'Experimental. Puede dar información falsa. '
+              'En una emergencia usa Emergencias.',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _input,
+              minLines: 1,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Tu pregunta',
+                border: OutlineInputBorder(),
               ),
-              const SizedBox(height: 16),
-              ..._content(),
-              if (_chat.error != null) ...[
-                const SizedBox(height: 16),
-                Text(
-                  _chat.error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              ],
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: _chat.answering ? null : _ask,
+              child: Text(_chat.answering ? 'Respondiendo…' : 'Preguntar'),
+            ),
+            const SizedBox(height: 16),
+            if (_chat.reply case final reply?)
+              ReplyView(reply: reply)
+            else if (_chat.answer.isNotEmpty) ...[
+              const Text('Respuesta del modelo, sin fuente verificada:'),
+              SelectableText(_chat.answer, style: const TextStyle(fontSize: 18)),
             ],
-          ),
+            const SizedBox(height: 16),
+            if (saver)
+              const Text('Modo ahorro: respondo solo con las fichas, sin modelo de IA.')
+            else
+              ..._content(),
+            if (_chat.error != null) ...[
+              const SizedBox(height: 16),
+              Text(
+                _chat.error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -95,24 +134,7 @@ class _ChatScreenState extends State<ChatScreen> {
       SizedBox(height: 8),
       LinearProgressIndicator(),
     ],
-    ChatPhase.ready => [
-      TextField(
-        controller: _input,
-        minLines: 1,
-        maxLines: 4,
-        decoration: const InputDecoration(
-          labelText: 'Tu pregunta',
-          border: OutlineInputBorder(),
-        ),
-      ),
-      const SizedBox(height: 16),
-      FilledButton(
-        onPressed: _chat.answering ? null : () => _chat.ask(_input.text),
-        child: Text(_chat.answering ? 'Respondiendo…' : 'Preguntar'),
-      ),
-      const SizedBox(height: 16),
-      SelectableText(_chat.answer, style: const TextStyle(fontSize: 18)),
-    ],
+    ChatPhase.ready => const [Text('Modelo listo para preguntas que no estén en las fichas.')],
     ChatPhase.failed => [
       FilledButton(onPressed: _chat.retry, child: const Text('Reintentar')),
     ],

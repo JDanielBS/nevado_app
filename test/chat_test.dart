@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nevado_app/core/ai/device_support.dart';
 import 'package:nevado_app/core/ai/llm_engine.dart';
+import 'package:nevado_app/core/content/card.dart';
+import 'package:nevado_app/core/content/card_repository.dart';
 import 'package:nevado_app/features/chat/chat_controller.dart';
 import 'package:nevado_app/features/chat/chat_screen.dart';
 
@@ -74,7 +77,7 @@ void main() {
   testWidgets('teléfono no compatible muestra el motivo', (tester) async {
     await open(tester, FakeEngine(reason: 'Poca memoria'));
     expect(find.text('Poca memoria'), findsOneWidget);
-    expect(find.byType(TextField), findsNothing);
+    expect(find.byType(TextField), findsOneWidget);
   });
 
   testWidgets('descarga, muestra progreso, carga y responde', (tester) async {
@@ -131,7 +134,52 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('dañado'), findsOneWidget);
     expect(find.text('Reintentar'), findsOneWidget);
-    expect(find.byType(TextField), findsNothing);
+    expect(find.byType(TextField), findsOneWidget);
+  });
+
+  group('reglas antes del modelo', () {
+    final cards = fichasDesdeTexto(File(rutaFichas).readAsStringSync());
+
+    Future<ChatController> ready() async {
+      final controller = ChatController(FakeEngine(installed: true));
+      await controller.start();
+      return controller;
+    }
+
+    for (final (question, type) in [
+      ('me rompí la pierna', TipoRespuesta.emergencia),
+      ('¿qué pastilla tomo y en qué dosis?', TipoRespuesta.limite),
+      ('¿puedo subir hoy?', TipoRespuesta.limite),
+      ('¿qué es un frailejón?', TipoRespuesta.respuesta),
+    ]) {
+      test('"$question" no usa el modelo', () async {
+        final controller = await ready();
+        await controller.ask(question, cards: cards);
+        expect(controller.reply?.tipo, type);
+        expect(controller.answer, isEmpty);
+      });
+    }
+
+    test('sin ficha usa el modelo', () async {
+      final controller = await ready();
+      await controller.ask('¿cómo se hace una arepa?', cards: cards);
+      expect(controller.reply, isNull);
+      expect(controller.answer, 'Hola mundo');
+    });
+
+    test('en modo ahorro no usa el modelo', () async {
+      final controller = await ready();
+      await controller.ask('¿cómo se hace una arepa?', cards: cards, batterySaver: true);
+      expect(controller.reply?.tipo, TipoRespuesta.sinInformacion);
+      expect(controller.answer, isEmpty);
+    });
+
+    test('sin modelo responde con las fichas', () async {
+      final controller = ChatController(FakeEngine());
+      await controller.start();
+      await controller.ask('¿qué es un frailejón?', cards: cards);
+      expect(controller.reply?.tipo, TipoRespuesta.respuesta);
+    });
   });
 
   test('salir y volver no inicia otra descarga', () async {

@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Mapa de revisión: Nevado del Ruiz</title>
+  <link rel="stylesheet" href="lib/maplibre-gl.css">
+  <style>
+    :root { --tinta: #33284a; --acento: #1f6f5c; --papel: #fff6e0; --exterior: #f1e3c4;
+      --borde: 2.5px solid var(--tinta); --relieve: 3px 3px 0 var(--tinta); }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: #1b2422; font-family: system-ui, sans-serif; color: var(--tinta); }
+    body { display: flex; align-items: center; justify-content: center; }
+    #telefono { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--exterior); }
+    /* En pantallas anchas se simula un celular en vertical. */
+    @media (min-width: 600px) {
+      #telefono { width: min(400px, 100vw); height: min(850px, 96vh); border-radius: 28px; box-shadow: 0 0 0 8px #0b0f0e, 0 20px 50px #0008; }
+    }
+    /* Dentro de la app el visor ocupa toda la vista, sin marco de celular. */
+    html.app #telefono { width: 100%; height: 100%; border-radius: 0; box-shadow: none; }
+    #mapa { position: absolute; inset: 0; }
+    .flotante { position: absolute; z-index: 3; background: var(--papel); border: var(--borde); box-shadow: var(--relieve); }
+    button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
+    button:focus-visible, input:focus-visible { outline: 3px solid #f59e0b; outline-offset: 2px; }
+
+    header { top: 12px; left: 12px; right: 12px; border-radius: 16px; padding: 10px 14px; }
+    header h1 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: .02em; }
+    header p { margin: 2px 0 0; font-size: 12px; font-weight: 600; color: #9a3412; }
+
+    #botones { position: absolute; z-index: 3; right: 12px; top: 92px; display: flex; flex-direction: column; gap: 10px; }
+    #botones button { width: 48px; height: 48px; border-radius: 50%; background: var(--papel); border: var(--borde);
+      box-shadow: var(--relieve); font-size: 22px; font-weight: 800; display: grid; place-items: center; }
+    #botones button:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--tinta); }
+    #norte span { display: inline-block; color: #b91c1c; font-size: 20px; }
+
+    #barra { left: 12px; right: 12px; bottom: 30px; border-radius: 18px; padding: 6px; display: flex; gap: 6px; }
+    #barra button { flex: 1; min-height: 48px; border-radius: 13px; font-size: 15px; font-weight: 600; }
+    #barra button[aria-pressed="true"] { background: var(--acento); color: #fff; box-shadow: inset 0 0 0 2px var(--tinta); }
+
+    .hoja { left: 12px; right: 12px; bottom: 100px; border-radius: 18px; padding: 12px 16px; font-size: 15px; }
+    .hoja[hidden] { display: none; }
+    .hoja label { display: flex; align-items: center; gap: 12px; min-height: 44px; }
+    .hoja input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--acento); }
+    .muestra { margin-left: auto; width: 28px; height: 0; border-top: 3px solid; }
+    #ficha h2 { margin: 0 44px 4px 0; font-size: 17px; }
+    #ficha p { margin: 2px 0; font-size: 14px; }
+    #ficha .aviso { color: #9a3412; font-size: 12px; }
+    #cerrar { position: absolute; right: 4px; top: 4px; width: 44px; height: 44px; font-size: 22px; }
+    .leyenda { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; padding-top: 8px; border-top: 1px solid #ddd; }
+    .leyenda img { width: 24px; height: 24px; vertical-align: middle; margin-right: 4px; }
+    #cargando { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; background: var(--exterior);
+      font-weight: 700; }
+    #cargando[hidden] { display: none; }
+    .maplibregl-ctrl-scale { background: var(--papel); border-color: var(--tinta); }
+
+    .maplibregl-ctrl-bottom-left { bottom: 2px; }
+    .maplibregl-ctrl-bottom-right { bottom: 0; }
+    .maplibregl-ctrl-attrib { font-size: 9px; }
+  </style>
+</head>
+<body>
+  <main id="telefono">
+    <div id="mapa"></div>
+    <div id="cargando" role="status">Dibujando el mapa…</div>
+    <header class="flotante">
+      <h1>Nevado del Ruiz</h1>
+      <p>Mapa de revisión, sin verificar. No usar para orientarse.</p>
+    </header>
+
+    <div id="botones">
+      <button id="acercar" aria-label="Acercar">+</button>
+      <button id="alejar" aria-label="Alejar">&minus;</button>
+      <button id="norte" aria-label="Orientar al norte"><span>&#9650;</span></button>
+      <button id="inicio" aria-label="Volver al volcán">&#8962;</button>
+    </div>
+
+    <section id="capas" class="flotante hoja" hidden aria-label="Capas del mapa">
+      <label><input type="checkbox" data-capas="vias-borde,vias" checked> Carreteras <span class="muestra" style="color:#33284a"></span></label>
+      <label><input type="checkbox" data-capas="senderos-borde,senderos" checked> Senderos <span class="muestra" style="color:#b3261e;border-top-style:dashed"></span></label>
+      <label><input type="checkbox" data-capas="limite-halo,limite" checked> Límite del parque <span class="muestra" style="color:#2f8f5b"></span></label>
+      <label><input type="checkbox" data-capas="puntos,nombres" checked> Lugares</label>
+      <label><input type="checkbox" id="ver-curvas" checked> Curvas de nivel (solo 3D)</label>
+      <label><input type="checkbox" id="ver-satelite"> Imagen satelital 2016</label>
+      <div class="leyenda">
+        <span><img data-icono="volcan" alt="">Volcán o cráter</span>
+        <span><img data-icono="refugio" alt="">Albergue o campamento</span>
+        <span><img data-icono="termales" alt="">Termales</span>
+        <span><img data-icono="pico" alt="">Pico</span>
+        <span><img data-icono="otro" alt="">Otros</span>
+      </div>
+    </section>
+
+    <section id="ficha" class="flotante hoja" hidden aria-live="polite">
+      <button id="cerrar" aria-label="Cerrar">&times;</button>
+      <h2></h2><p class="detalle"></p>
+      <p class="aviso">Dato de OpenStreetMap sin verificar. Que aparezca no significa que esté abierto ni que sea seguro.</p>
+    </section>
+
+    <nav id="barra" class="flotante">
+      <button id="modo-3d" aria-pressed="true">Relieve 3D</button>
+      <button id="modo-2d" aria-pressed="false">Mapa plano</button>
+      <button id="abrir-capas" aria-pressed="false" aria-expanded="false">Capas</button>
+    </nav>
+  </main>
+
+  <script src="lib/maplibre-gl.js"></script>
+  <script>
+    // Parámetros: "app" quita el marco de celular; "plano" abre el mapa sin relieve (modo ahorro).
+    const parametros = new URLSearchParams(location.search);
+    if (parametros.has("app")) document.documentElement.classList.add("app");
+    const base = new URL("../", location.href).href;
+    const caja = [-75.45, 4.75, -75.20, 5.10];
+    const [oeste, sur, este, norte] = caja;
+    const VOLCAN = [-75.3239, 4.8945];
+    const EXTERIOR = "#f1e3c4";
+    const TINTA = "#33284a";
+    // Franjas de color por altitud: [altitud inicial en metros, color].
+    const FRANJAS = [[1800, "#7fc29b"], [2300, "#9fd08c"], [2800, "#c3dd85"], [3300, "#e8df8c"],
+      [3800, "#f4c77d"], [4200, "#eaa57e"], [4600, "#c99aae"], [4900, "#ffffff"]];
+    // El relieve de color solo admite interpolación: dos paradas casi juntas producen el salto plano.
+    const colorFranjas = ["interpolate", ["linear"], ["elevation"],
+      ...FRANJAS.flatMap(([desde, color], i) => [desde, color, (FRANJAS[i + 1]?.[0] ?? 5600) - 4, color])];
+    const geojson = (nombre) => ({ type: "geojson", data: `${base}salida/${nombre}.geojson` });
+    const dem = { type: "raster-dem", tiles: [`${base}salida/elevacion/{z}/{x}/{y}.png`],
+      encoding: "terrarium", tileSize: 256, minzoom: 10, maxzoom: 12, bounds: caja,
+      attribution: "Copernicus DEM GLO-30" };
+    // Margen interior que oculta las paredes verticales del borde del relieve.
+    const M = 0.004;
+    // Polígono que cubre todo lo que queda fuera de la zona delimitada.
+    const mascara = { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [
+      [[-80, 0], [-70, 0], [-70, 10], [-80, 10], [-80, 0]],
+      [[oeste + M, sur + M], [oeste + M, norte - M], [este - M, norte - M], [este - M, sur + M], [oeste + M, sur + M]]
+    ] } };
+
+    // Filtro por nivel de zoom: cada categoría aparece a partir de un acercamiento determinado.
+    const tipo = ["get", "tipo"];
+    const es = (...valores) => ["in", tipo, ["literal", valores]];
+    const conNombre = ["!=", ["get", "nombre"], ""];
+    const esSendero = es("path", "footway", "track", "bridleway", "steps");
+    const filtroSenderos = ["step", ["zoom"],
+      ["all", es("path", "track"), conNombre],
+      12, es("path", "bridleway", "track"),
+      13.5, esSendero];
+    const principales = es("trunk", "trunk_link", "primary", "primary_link", "secondary", "secondary_link");
+    const filtroVias = ["step", ["zoom"],
+      principales,
+      11, ["any", principales, es("tertiary", "tertiary_link")],
+      12.5, ["any", principales, es("tertiary", "tertiary_link", "unclassified")],
+      13.5, ["!", esSendero]];
+    const volcanes = es("volcano");
+    const refugios = es("alpine_hut", "camp_site", "hot_spring");
+    const filtroPuntos = ["step", ["zoom"],
+      volcanes,
+      11.8, ["any", volcanes, refugios],
+      12.8, ["any", volcanes, refugios, es("peak", "viewpoint")],
+      13.8, ["!", es("locality", "hamlet", "village")]];
+
+    const ancho = (z11, z15) => ["interpolate", ["linear"], ["zoom"], 11, z11, 15, z15];
+    const redondo = { "line-cap": "round", "line-join": "round" };
+
+    const mapa = new maplibregl.Map({
+      container: "mapa",
+      center: VOLCAN, zoom: 11.3, pitch: 52, bearing: 0,
+      minZoom: 10.8, maxZoom: 15, maxPitch: 65,
+      maxBounds: [[oeste - 0.06, sur - 0.07], [este + 0.06, norte + 0.07]],
+      attributionControl: false,
+      style: {
+        version: 8,
+        sources: {
+          terreno: dem, sombra: { ...dem }, tinte: { ...dem },
+          satelite: { type: "image", url: `${base}satelite/s2cloudless2016_ruiz.jpg`,
+            coordinates: [[oeste, norte], [este, norte], [este, sur], [oeste, sur]] },
+          curvas: geojson("curvas"), vias: { ...geojson("vias"), attribution: "© OpenStreetMap" },
+          agua: geojson("agua"), area: geojson("area_pnn"), limite: geojson("limite_pnn"), puntos: geojson("puntos"),
+          mascara: { type: "geojson", data: mascara },
+          marco: { type: "geojson", data: { type: "Feature", properties: {},
+            geometry: { type: "LineString", coordinates: mascara.geometry.coordinates[1] } } }
+        },
+        terrain: { source: "terreno", exaggeration: 1.25 },
+        sky: { "sky-color": "#9fd8e8", "horizon-color": EXTERIOR, "fog-color": EXTERIOR,
+          "sky-horizon-blend": 0.6, "horizon-fog-blend": 0.5, "fog-ground-blend": 0.9 },
+        layers: [
+          { id: "fondo", type: "background", paint: { "background-color": "#fbf0d2" } },
+          { id: "tinte", type: "color-relief", source: "tinte", paint: { "color-relief-opacity": 1,
+            "color-relief-color": colorFranjas } },
+          { id: "area", type: "fill", source: "area", layout: { visibility: "none" },
+            paint: { "fill-color": "#bfe3a8", "fill-opacity": 0.85 } },
+          { id: "satelite", type: "raster", source: "satelite", layout: { visibility: "none" } },
+          { id: "sombra", type: "hillshade", source: "sombra", paint: { "hillshade-exaggeration": 0.3,
+            "hillshade-shadow-color": "#5b4a86", "hillshade-highlight-color": "#fff8e1",
+            "hillshade-accent-color": "#7a5c8e" } },
+          { id: "curvas", type: "line", source: "curvas", filter: ["step", ["zoom"], ["==", ["get", "maestra"], true], 12.5, true],
+            paint: { "line-color": TINTA, "line-opacity": 0.22,
+              "line-width": ["case", ["get", "maestra"], 1.2, 0.6] } },
+          { id: "glaciar", type: "fill", source: "agua", filter: ["==", tipo, "glacier"],
+            paint: { "fill-color": "#ffffff", "fill-outline-color": "#3f8fc4" } },
+          { id: "lagunas", type: "fill", source: "agua", filter: ["==", tipo, "water"],
+            paint: { "fill-color": "#45c4d1", "fill-outline-color": TINTA } },
+          { id: "rios", type: "line", source: "agua", layout: redondo,
+            filter: ["step", ["zoom"], ["==", tipo, "river"], 12, es("river", "stream")],
+            paint: { "line-color": "#2f9fc0", "line-width": ancho(1, 2.4) } },
+          { id: "limite-halo", type: "line", source: "limite", layout: redondo,
+            paint: { "line-color": "#2f8f5b", "line-width": ancho(6, 16), "line-opacity": 0.28 } },
+          { id: "limite", type: "line", source: "limite", layout: redondo,
+            paint: { "line-color": "#1d6b42", "line-width": ancho(1.6, 3), "line-dasharray": [4, 2] } },
+          { id: "vias-borde", type: "line", source: "vias", filter: filtroVias, layout: redondo,
+            paint: { "line-color": TINTA, "line-width": ancho(3.4, 10) } },
+          { id: "vias", type: "line", source: "vias", filter: filtroVias, layout: redondo,
+            paint: { "line-color": ["case", principales, "#ffcf4d", "#fff6e0"], "line-width": ancho(1.6, 6) } },
+          { id: "senderos-borde", type: "line", source: "vias", filter: filtroSenderos, layout: redondo,
+            paint: { "line-color": "#fff6e0", "line-width": ancho(4.5, 8) } },
+          { id: "senderos", type: "line", source: "vias", filter: filtroSenderos, layout: redondo,
+            paint: { "line-color": "#b3261e", "line-width": ancho(2, 3.6), "line-dasharray": [1.2, 1.8] } },
+          { id: "puntos", type: "symbol", source: "puntos", filter: filtroPuntos,
+            layout: { "icon-image": ["match", tipo, "volcano", "icono-volcan",
+                ["alpine_hut", "wilderness_hut", "camp_site"], "icono-refugio", "hot_spring", "icono-termales",
+                "peak", "icono-pico", "icono-otro"],
+              "icon-size": ancho(0.8, 1.15), "icon-allow-overlap": true, "icon-ignore-placement": true } },
+          { id: "mascara", type: "fill", source: "mascara", paint: { "fill-color": EXTERIOR, "fill-antialias": false } },
+          { id: "marco", type: "line", source: "marco", paint: { "line-color": TINTA, "line-width": 3 } }
+        ]
+      }
+    });
+    mapa.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-right");
+    mapa.addControl(new maplibregl.ScaleControl({ maxWidth: 80 }), "bottom-left");
+    mapa.on("error", (e) => console.error("[visor]", e.error && e.error.message));
+    new ResizeObserver(() => mapa.resize()).observe(document.getElementById("mapa"));
+    mapa.once("load", () => document.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show"));
+
+    const el = (id) => document.getElementById(id);
+    const quitarCarga = () => { el("cargando").hidden = true; };
+    mapa.once("load", () => mapa.once("idle", quitarCarga));
+    setTimeout(quitarCarga, 15000);
+    const visible = (capas, ver) => capas.forEach((c) => mapa.setLayoutProperty(c, "visibility", ver ? "visible" : "none"));
+    let relieve = true;
+
+    // Iconos: se dibujan en un lienzo local, así no hacen falta imágenes ni recursos remotos.
+    const ICONOS = { volcan: "#e4573d", refugio: "#8b5cf6", termales: "#14a3b8", pico: "#7c6a58", otro: "#f2a93b" };
+    function lienzoIcono(nombre) {
+      const lado = nombre === "otro" ? 20 : 34, escala = 3, lienzo = document.createElement("canvas");
+      lienzo.width = lienzo.height = lado * escala;
+      const c = lienzo.getContext("2d"), m = lado / 2;
+      c.scale(escala, escala);
+      c.lineJoin = c.lineCap = "round";
+      c.beginPath(); c.arc(m, m, m - 2, 0, 2 * Math.PI);
+      c.fillStyle = ICONOS[nombre]; c.fill();
+      c.lineWidth = 2.2; c.strokeStyle = TINTA; c.stroke();
+      const figura = (puntos, color) => {
+        c.beginPath(); puntos.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y)); c.closePath();
+        c.fillStyle = color; c.fill(); c.lineWidth = 1.4; c.stroke();
+      };
+      const trazo = (dibujar) => { c.beginPath(); dibujar(); c.strokeStyle = "#ffffff"; c.lineWidth = 2; c.stroke(); c.strokeStyle = TINTA; };
+      if (nombre === "volcan") {
+        figura([[7, 25], [13.5, 14], [20.5, 14], [27, 25]], "#fff6e0");
+        trazo(() => { c.moveTo(17, 11); c.quadraticCurveTo(13, 8, 18, 5.5); });
+      } else if (nombre === "pico") {
+        figura([[7, 25], [17, 9], [27, 25]], "#fff6e0");
+        figura([[13.2, 15], [17, 9], [20.8, 15], [18.5, 14], [17, 16], [15.5, 14]], "#ffffff");
+      } else if (nombre === "refugio") {
+        figura([[7, 25], [17, 9], [27, 25]], "#fff6e0");
+        figura([[13.5, 25], [17, 17], [20.5, 25]], TINTA);
+      } else if (nombre === "termales") {
+        c.beginPath(); c.ellipse(17, 23, 9, 4, 0, 0, 2 * Math.PI); c.fillStyle = "#fff6e0"; c.fill(); c.lineWidth = 1.4; c.stroke();
+        [12.5, 17, 21.5].forEach((x) => trazo(() => { c.moveTo(x, 17); c.bezierCurveTo(x - 3, 14, x + 3, 12, x, 8.5); }));
+      }
+      return lienzo;
+    }
+    mapa.on("styleimagemissing", (e) => {
+      const nombre = e.id.replace("icono-", "");
+      if (!(nombre in ICONOS) || mapa.hasImage(e.id)) return;
+      const lienzo = lienzoIcono(nombre);
+      mapa.addImage(e.id, lienzo.getContext("2d").getImageData(0, 0, lienzo.width, lienzo.height), { pixelRatio: 3 });
+    });
+    document.querySelectorAll("[data-icono]").forEach((img) => { img.src = lienzoIcono(img.dataset.icono).toDataURL(); });
+
+    // Etiquetas: el texto se dibuja en un lienzo local y se agrega como icono. Así no se necesitan
+    // fuentes tipográficas remotas y el propio mapa evita las superposiciones, también con relieve.
+    const PRIORIDAD = { volcano: 1, alpine_hut: 2, hot_spring: 2, camp_site: 3, peak: 4, viewpoint: 4 };
+    function imagenTexto(texto, tamano) {
+      const escala = 2, lienzo = document.createElement("canvas"), ctx = lienzo.getContext("2d");
+      const fuente = `800 ${tamano * escala}px system-ui, sans-serif`;
+      ctx.font = fuente;
+      lienzo.width = Math.ceil(ctx.measureText(texto).width) + 18 * escala;
+      lienzo.height = (tamano + 13) * escala;
+      const w = lienzo.width, h = lienzo.height, borde = 2 * escala;
+      // Etiqueta redondeada con borde y sombra plana.
+      const caja = (x, y, color) => { ctx.beginPath(); ctx.roundRect(x, y, w - borde * 2, h - borde * 2, 8 * escala);
+        ctx.fillStyle = color; ctx.fill(); };
+      caja(borde * 1.6, borde * 1.6, TINTA);
+      caja(borde * 0.6, borde * 0.6, "#fff6e0");
+      ctx.lineWidth = 1.5 * escala; ctx.strokeStyle = TINTA; ctx.stroke();
+      ctx.font = fuente;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = TINTA;
+      ctx.fillText(texto, w / 2 - borde * 0.4, h / 2 - borde * 0.3);
+      return [ctx.getImageData(0, 0, w, h), { pixelRatio: escala }];
+    }
+    mapa.once("load", async () => {
+      const datos = await fetch(`${base}salida/puntos.geojson`).then((r) => r.json());
+      const elementos = datos.features.filter((f) => f.properties.tipo in PRIORIDAD).map((f, i) => {
+        const principal = f.properties.nombre === "Volcán Nevado del Ruiz";
+        mapa.addImage(`etiqueta-${i}`, ...imagenTexto(f.properties.nombre, principal ? 14 : 11));
+        return { ...f, properties: { ...f.properties, icono: `etiqueta-${i}`,
+          orden: principal ? 0 : PRIORIDAD[f.properties.tipo] } };
+      });
+      mapa.addSource("nombres", { type: "geojson", data: { type: "FeatureCollection", features: elementos } });
+      const principal = ["==", ["get", "orden"], 0];
+      mapa.addLayer({ id: "nombres", type: "symbol", source: "nombres",
+        filter: ["step", ["zoom"],
+          principal,
+          11.8, ["<=", ["get", "orden"], 2],
+          12.3, ["<=", ["get", "orden"], 3],
+          12.8, true],
+        layout: { "icon-image": ["get", "icono"], "icon-anchor": "bottom", "icon-offset": [0, -17],
+          "symbol-sort-key": ["get", "orden"],
+          visibility: document.querySelector('[data-capas^="puntos"]').checked ? "visible" : "none" } });
+    });
+
+    const NOMBRES = { volcano: "Volcán o cráter", alpine_hut: "Albergue", camp_site: "Campamento", hot_spring: "Termales",
+      peak: "Pico", viewpoint: "Mirador", information: "Información", hotel: "Hotel", saddle: "Paso",
+      wilderness_hut: "Hostal o cabaña", path: "Sendero", track: "Trocha", footway: "Camino peatonal",
+      bridleway: "Camino de herradura", steps: "Escalones" };
+    function abrirFicha(titulo, detalle) {
+      mostrarCapas(false);
+      el("ficha").querySelector("h2").textContent = titulo;
+      el("ficha").querySelector(".detalle").textContent = detalle;
+      el("ficha").hidden = false;
+    }
+    mapa.on("click", (e) => {
+      const margen = [[e.point.x - 12, e.point.y - 12], [e.point.x + 12, e.point.y + 12]];
+      const hallado = mapa.queryRenderedFeatures(margen, { layers: ["puntos"] })[0]
+        || mapa.queryRenderedFeatures(margen, { layers: ["senderos"] })[0];
+      if (!hallado) { el("ficha").hidden = true; mostrarCapas(false); return; }
+      const p = hallado.properties, clase = NOMBRES[p.tipo] || "Lugar";
+      if (hallado.layer.id === "puntos") abrirFicha(p.nombre, `${clase} · ${p.altitud} m de altitud`);
+      else abrirFicha(p.nombre || "Sendero sin nombre", `${clase} · entre ${p.altitud_min} y ${p.altitud_max} m`);
+    });
+
+    function aplicarRelieve() {
+      const satelite = el("ver-satelite").checked;
+      visible(["satelite"], satelite);
+      visible(["sombra"], relieve);
+      visible(["area"], !relieve && !satelite);
+      visible(["tinte"], relieve && !satelite);
+      visible(["curvas"], relieve && el("ver-curvas").checked);
+    }
+    function cambiarModo(en3d) {
+      relieve = en3d;
+      el("modo-3d").setAttribute("aria-pressed", en3d);
+      el("modo-2d").setAttribute("aria-pressed", !en3d);
+      el("ver-curvas").disabled = !en3d;
+      mapa.setTerrain(en3d ? { source: "terreno", exaggeration: 1.25 } : null);
+      mapa.setMaxPitch(en3d ? 65 : 0);
+      if (en3d) { mapa.dragRotate.enable(); mapa.touchZoomRotate.enableRotation(); mapa.easeTo({ pitch: 52 }); }
+      else { mapa.dragRotate.disable(); mapa.touchZoomRotate.disableRotation(); mapa.easeTo({ pitch: 0, bearing: 0 }); }
+      aplicarRelieve();
+      if (en3d) mapa.once("idle", ajustarAltura);
+    }
+    // Ajusta la cámara a la altura del terreno; si no, la vista queda desplazada al volver al relieve.
+    function ajustarAltura() {
+      if (!mapa.getTerrain()) return;
+      const altura = mapa.queryTerrainElevation(mapa.getCenter());
+      if (altura) mapa.setCenterElevation(altura);
+    }
+    function mostrarCapas(ver) {
+      el("capas").hidden = !ver;
+      el("abrir-capas").setAttribute("aria-pressed", ver);
+      el("abrir-capas").setAttribute("aria-expanded", ver);
+      if (ver) el("ficha").hidden = true;
+    }
+    el("modo-3d").onclick = () => cambiarModo(true);
+    el("modo-2d").onclick = () => cambiarModo(false);
+    el("abrir-capas").onclick = () => mostrarCapas(el("capas").hidden);
+    el("cerrar").onclick = () => { el("ficha").hidden = true; };
+    el("acercar").onclick = () => mapa.zoomIn();
+    el("alejar").onclick = () => mapa.zoomOut();
+    el("norte").onclick = () => mapa.easeTo({ bearing: 0 });
+    el("inicio").onclick = () => {
+      mapa.once("moveend", () => mapa.once("idle", ajustarAltura));
+      mapa.easeTo({ center: VOLCAN, zoom: 11.3, bearing: 0, pitch: relieve ? 52 : 0 });
+    };
+    mapa.on("rotate", () => { el("norte").firstChild.style.transform = `rotate(${-mapa.getBearing()}deg)`; });
+    el("ver-satelite").onchange = aplicarRelieve;
+    el("ver-curvas").onchange = aplicarRelieve;
+    document.querySelectorAll("[data-capas]").forEach((casilla) => casilla.addEventListener("change", () => {
+      visible(casilla.dataset.capas.split(","), casilla.checked);
+    }));
+    if (parametros.has("plano")) mapa.once("load", () => cambiarModo(false));
+    window.mapa = mapa;
+  </script>
+</body>
+</html>

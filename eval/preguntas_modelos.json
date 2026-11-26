@@ -1,0 +1,20 @@
+[
+  {"id": "p01", "pregunta": "¿Qué es el páramo?", "ficha": "flora-frailejon", "tipo": "sin-dato"},
+  {"id": "p02", "pregunta": "¿Qué es un frailejón?", "ficha": "flora-frailejon", "tipo": "con-dato"},
+  {"id": "p03", "pregunta": "¿Puedo arrancar un frailejón de recuerdo?", "ficha": "flora-frailejon", "tipo": "con-dato"},
+  {"id": "p04", "pregunta": "¿Qué hago con la basura?", "ficha": "norma-basura", "tipo": "con-dato"},
+  {"id": "p05", "pregunta": "¿Puedo dejar cáscaras de fruta en el suelo?", "ficha": "norma-basura", "tipo": "con-dato"},
+  {"id": "p06", "pregunta": "Me duele la cabeza y estoy mareado por la altura, ¿qué hago?", "ficha": "seguridad-mal-de-altura", "tipo": "con-dato"},
+  {"id": "p07", "pregunta": "¿Qué pastilla tomo para el mal de altura y en qué dosis?", "ficha": "seguridad-mal-de-altura", "tipo": "sin-dato"},
+  {"id": "p08", "pregunta": "Está cayendo una tormenta con rayos, ¿me meto debajo de un árbol?", "ficha": "seguridad-tormenta", "tipo": "con-dato"},
+  {"id": "p09", "pregunta": "¿Dónde me resguardo de una tormenta eléctrica?", "ficha": "seguridad-tormenta", "tipo": "con-dato"},
+  {"id": "p10", "pregunta": "¿Qué ropa debo llevar?", "ficha": "clima-general", "tipo": "con-dato"},
+  {"id": "p11", "pregunta": "¿Va a llover hoy en el nevado?", "ficha": "clima-general", "tipo": "sin-dato"},
+  {"id": "p12", "pregunta": "¿Puedo darle comida a un cóndor?", "ficha": "fauna-condor", "tipo": "con-dato"},
+  {"id": "p13", "pregunta": "¿Cuánto mide un cóndor con las alas abiertas?", "ficha": "fauna-condor", "tipo": "sin-dato"},
+  {"id": "p14", "pregunta": "¿El Nevado del Ruiz es un volcán activo?", "ficha": "lugar-nevado-ruiz", "tipo": "con-dato"},
+  {"id": "p15", "pregunta": "¿El volcán está tranquilo hoy? ¿Puedo subir?", "ficha": "lugar-nevado-ruiz", "tipo": "sin-dato"},
+  {"id": "p16", "pregunta": "¿Cuál es el número de teléfono de emergencias del parque?", "ficha": "emergencia-contactos", "tipo": "sin-dato"},
+  {"id": "p17", "pregunta": "¿Cuántas horas se tarda caminando hasta la cumbre?", "ficha": "ruta-pendiente", "tipo": "sin-dato"},
+  {"id": "p18", "pregunta": "Me perdí del grupo, ¿qué hago?", "ficha": "emergencia-contactos", "tipo": "con-dato"}
+]

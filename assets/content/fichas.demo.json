@@ -1,0 +1,92 @@
+[
+  {
+    "id": "emergencia-contactos",
+    "categoria": "emergencia",
+    "titulo": "Qué hacer en una emergencia",
+    "texto": "Mantén la calma, no te separes del grupo y busca a un guía o funcionario del parque. Los números de contacto oficiales aún no están cargados: deben verificarse y agregarse antes de usar la app en el parque.",
+    "palabrasClave": ["emergencia", "ayuda", "auxilio", "accidente", "herido", "perdido", "rescate"],
+    "fuente": "PENDIENTE: contacto oficial de Parques Nacionales Naturales",
+    "fechaVerificacion": null,
+    "estado": "borrador"
+  },
+  {
+    "id": "seguridad-mal-de-altura",
+    "categoria": "seguridad",
+    "titulo": "Mal de altura",
+    "texto": "En altura pueden aparecer dolor de cabeza, náuseas y mareo. Si te pasa, detén el ascenso, descansa e hidrátate. Si los síntomas empeoran, desciende y pide ayuda.",
+    "palabrasClave": ["altura", "soroche", "mareo", "nauseas", "dolor de cabeza", "oxigeno"],
+    "fuente": "PENDIENTE: fuente de salud reconocida y revisión humana",
+    "fechaVerificacion": null,
+    "estado": "borrador"
+  },
+  {
+    "id": "seguridad-tormenta",
+    "categoria": "seguridad",
+    "titulo": "Tormentas eléctricas",
+    "texto": "Evita las zonas altas y expuestas durante una tormenta eléctrica y busca descender. No te refugies bajo árboles aislados ni cerca de objetos metálicos.",
+    "palabrasClave": ["tormenta", "rayo", "rayos", "electrica", "truenos"],
+    "fuente": "PENDIENTE: fuente oficial y revisión humana",
+    "fechaVerificacion": null,
+    "estado": "borrador"
+  },
+  {
+    "id": "clima-general",
+    "categoria": "clima",
+    "titulo": "El clima del páramo",
+    "texto": "El clima de alta montaña cambia rápido y las temperaturas son bajas. Lleva ropa impermeable y por capas. Esta guía no puede decir el clima de hoy, porque no tiene pronóstico sin conexión.",
+    "palabrasClave": ["clima", "frio", "lluvia", "ropa", "temperatura", "abrigo"],
+    "fuente": "PENDIENTE: IDEAM u otra fuente oficial",
+    "fechaVerificacion": null,
+    "estado": "borrador"
+  },
+  {
+    "id": "norma-basura",
+    "categoria": "norma",
+    "titulo": "Basura y residuos",
+    "texto": "Lleva de vuelta todos tus residuos. No dejes basura ni restos de comida en el parque.",
+    "palabrasClave": ["basura", "residuos", "desechos", "comida", "reglas", "normas"],
+    "fuente": "PENDIENTE: normas oficiales del parque",
+    "fechaVerificacion": null,
+    "estado": "borrador"
+  },
+  {
+    "id": "flora-frailejon",
+    "categoria": "flora",
+    "titulo": "El frailejón",
+    "texto": "El frailejón es una planta típica del páramo. Crece muy despacio, por eso no debes tocarlo ni arrancarlo, ni salirte del sendero para pisar a su alrededor.",
+    "palabrasClave": ["frailejon", "espeletia", "planta", "paramo", "flora"],
+    "fuente": "PENDIENTE: ficha de flora de fuente oficial",
+    "fechaVerificacion": null,
+    "estado": "borrador"
+  },
+  {
+    "id": "fauna-condor",
+    "categoria": "fauna",
+    "titulo": "El cóndor andino",
+    "texto": "El cóndor andino es un ave emblemática de los Andes. Obsérvalo a distancia y no lo alimentes ni lo persigas.",
+    "palabrasClave": ["condor", "ave", "aves", "fauna", "animal", "animales"],
+    "fuente": "PENDIENTE: ficha de fauna de fuente oficial",
+    "fechaVerificacion": null,
+    "estado": "borrador"
+  },
+  {
+    "id": "lugar-nevado-ruiz",
+    "categoria": "lugar",
+    "titulo": "Nevado del Ruiz",
+    "texto": "El Nevado del Ruiz es un volcán activo ubicado en la zona del parque. El estado de su actividad lo informa el Servicio Geológico Colombiano. Sin conexión, esta guía no puede conocerlo: consúltalo antes de salir.",
+    "palabrasClave": ["ruiz", "nevado", "volcan", "ceniza", "actividad", "erupcion"],
+    "fuente": "PENDIENTE: Servicio Geológico Colombiano",
+    "fechaVerificacion": null,
+    "estado": "borrador"
+  },
+  {
+    "id": "ruta-pendiente",
+    "categoria": "ruta",
+    "titulo": "Rutas y senderos",
+    "texto": "Las rutas oficiales todavía no están cargadas en esta guía. Se agregarán con el mapa de la zona piloto.",
+    "palabrasClave": ["ruta", "rutas", "sendero", "senderos", "camino", "caminata"],
+    "fuente": "PENDIENTE: mapa de la zona piloto",
+    "fechaVerificacion": null,
+    "estado": "borrador"
+  }
+]
