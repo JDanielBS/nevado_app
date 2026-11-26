@@ -121,8 +121,9 @@
     const colorFranjas = ["interpolate", ["linear"], ["elevation"],
       ...FRANJAS.flatMap(([desde, color], i) => [desde, color, (FRANJAS[i + 1]?.[0] ?? 5600) - 4, color])];
     const geojson = (nombre) => ({ type: "geojson", data: `${base}salida/${nombre}.geojson` });
-    // Una sola fuente DEM para el relieve, el sombreado y el color: cada fuente decodifica sus
-    // propios tiles, así que tres copias triplicaban la memoria del mismo terreno.
+    // Dos fuentes DEM: una para el terreno 3D y otra compartida por el sombreado y el color.
+    // Cada fuente decodifica sus propios tiles (memoria), pero si el terreno comparte fuente
+    // con esas capas, MapLibre dibuja el relieve borroso.
     const dem = { type: "raster-dem", tiles: [`${base}salida/elevacion/{z}/{x}/{y}.png`],
       encoding: "terrarium", tileSize: 256, minzoom: 10, maxzoom: 12, bounds: caja,
       attribution: "Copernicus DEM GLO-30" };
@@ -173,7 +174,7 @@
       style: {
         version: 8,
         sources: {
-          terreno: dem,
+          terreno: dem, relieve: { ...dem },
           curvas: geojson("curvas"), vias: { ...geojson("vias"), attribution: "© OpenStreetMap" },
           agua: geojson("agua"), area: geojson("area_pnn"), limite: geojson("limite_pnn"), puntos: geojson("puntos"),
           mascara: { type: "geojson", data: mascara },
@@ -185,11 +186,11 @@
           "sky-horizon-blend": 0.6, "horizon-fog-blend": 0.5, "fog-ground-blend": 0.9 },
         layers: [
           { id: "fondo", type: "background", paint: { "background-color": "#fbf0d2" } },
-          { id: "tinte", type: "color-relief", source: "terreno", paint: { "color-relief-opacity": 1,
+          { id: "tinte", type: "color-relief", source: "relieve", paint: { "color-relief-opacity": 1,
             "color-relief-color": colorFranjas } },
           { id: "area", type: "fill", source: "area", layout: { visibility: "none" },
             paint: { "fill-color": "#bfe3a8", "fill-opacity": 0.85 } },
-          { id: "sombra", type: "hillshade", source: "terreno", paint: { "hillshade-exaggeration": 0.3,
+          { id: "sombra", type: "hillshade", source: "relieve", paint: { "hillshade-exaggeration": 0.3,
             "hillshade-shadow-color": "#5b4a86", "hillshade-highlight-color": "#fff8e1",
             "hillshade-accent-color": "#7a5c8e" } },
           { id: "curvas", type: "line", source: "curvas", filter: ["step", ["zoom"], ["==", ["get", "maestra"], true], 12.5, true],
