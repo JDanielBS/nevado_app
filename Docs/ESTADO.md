@@ -49,3 +49,9 @@ Ver `docs/PENDIENTES.md`.
 - Entorno instalado: Flutter en `~/herramientas/flutter` (no está en el `PATH` del sistema); herramientas de mapas en `~/herramientas/mapas-venv`.
 - Los ajustes (tamaño de texto, modo ahorro manual) se pierden al cerrar la app.
 - En Flutter 3.50, Material se importa desde `package:material_ui/material_ui.dart`; `package:flutter/material.dart` está obsoleto.
+
+## Voz de la Guía IA (2026-11-26, rama `feat/chat-de-voz`)
+- La voz vive dentro de "Guía IA" y lee solo lo que escribe el modelo de lenguaje.
+- Local y sin conexión: voz Piper `es_ES-davefx-medium` (67 MB, datos CC0) con `sherpa_onnx` 1.13.8, en lugar de `flutter_piper_tts` (requería Rust).
+- Se descarga de la estación al escanear el pase, después del modelo, y se verifica con SHA-256.
+- Probado en un computador con Windows con la voz real: instalar 14 s, cargar 2,6 s, dos frases en 0,55 s. **No probado en ningún teléfono ni compilado el APK.**

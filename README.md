@@ -53,6 +53,11 @@ Límites:
 
 Usa Gemma 3 1B (584 MB). Solo en Android arm64 con 4 GB de RAM o más; el emulador no lo ejecuta.
 
+La Guía IA puede leer en voz alta **solo las respuestas que escribe el modelo** (las de fichas, reglas y
+emergencias se muestran en texto). La voz es Piper `es_ES-davefx-medium` sobre `sherpa-onnx` 1.13.8: se descarga
+de la estación, se verifica con SHA-256 y funciona sin red. Se apaga en modo ahorro o en "Acerca".
+`sherpa-onnx` 1.x incluye `espeak-ng`, con licencia GPL-3: pendiente de revisar antes de distribuir.
+
 La app no incluye el modelo: lo descarga al activar el pase, desde el computador de la estación, y luego
 funciona sin red. No requiere token en el teléfono.
 

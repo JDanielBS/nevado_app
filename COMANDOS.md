@@ -51,6 +51,17 @@ Solo para desarrollo, sin estación: crear `.env` con `HUGGINGFACE_TOKEN=hf_...`
 `--dart-define-from-file=.env` a `flutter run`. Ese token queda dentro del APK: **no repartir un APK compilado
 así**.
 
+### Voz de la Guía IA
+
+También se descarga una sola vez en la estación (67 MB, sin token), en la misma carpeta. Si falta, el servidor
+de la estación no arranca.
+
+```sh
+curl -L -o estacion/vits-piper-es_ES-davefx-medium.tar.bz2 https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-es_ES-davefx-medium.tar.bz2
+```
+
+Los teléfonos la reciben al escanear el pase, después del modelo, y la usan sin conexión.
+
 ## 3. Ejecutar en el teléfono (desarrollo)
 
 Activar la depuración USB en el teléfono y conectarlo. Requiere Android 11 o superior; el modelo, además,

@@ -97,3 +97,10 @@ Falta:
 - [ ] Versión iOS.
 - [ ] Audio de fichas, brújula, punto de descarga local.
 - [ ] Spike de comunicación cercana y Meshtastic.
+
+## Voz de la Guía IA (2026-11-26)
+- [ ] Compilar el APK (revisar que `sherpa_onnx` y el motor del modelo no choquen en las bibliotecas nativas) y probar en el celular: descarga, tiempo de instalación, latencia, memoria y audio.
+- [ ] Revisar la licencia GPL-3 de `espeak-ng` (incluido en `sherpa_onnx` 1.x) antes de distribuir.
+- [ ] Probar una voz latinoamericana (`es_MX`) si la de España no convence.
+- [ ] El chat se desborda con texto al 200 % en pantallas pequeñas (ya pasaba antes).
+- [ ] Liberar la voz si se sale de la pantalla mientras todavía se está cargando.
