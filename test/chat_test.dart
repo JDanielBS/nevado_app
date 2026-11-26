@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nevado_app/core/ai/device_support.dart';
 import 'package:nevado_app/core/ai/llm_engine.dart';
+import 'package:nevado_app/core/ai/retriever.dart';
 import 'package:nevado_app/core/content/card.dart';
 import 'package:nevado_app/core/content/card_repository.dart';
 import 'package:nevado_app/features/chat/chat_controller.dart';
@@ -20,6 +21,8 @@ class FakeEngine implements LlmEngine {
   bool failInstall = false;
   bool failGenerate = false;
   bool corrupt = false;
+  String? lastPrompt;
+  List<String> salida = ['Hola ', 'mundo'];
   int installs = 0;
   int loads = 0;
   int unloads = 0;
@@ -53,14 +56,19 @@ class FakeEngine implements LlmEngine {
   }
 
   @override
-  Stream<String> generate(String prompt) => failGenerate
-      ? Stream.error(Exception('motor'))
-      : Stream.fromIterable(['Hola ', 'mundo']);
+  Stream<String> generate(String prompt) {
+    lastPrompt = prompt;
+    return failGenerate
+        ? Stream.error(Exception('motor'))
+        : Stream.fromIterable(salida);
+  }
 }
 
 Future<ChatController> open(WidgetTester tester, FakeEngine engine) async {
   final controller = ChatController(engine);
-  await tester.pumpWidget(MaterialApp(home: ChatScreen(controller: controller)));
+  await tester.pumpWidget(
+    MaterialApp(home: ChatScreen(controller: controller)),
+  );
   await tester.pump();
   await tester.pump();
   expect(find.textContaining('Experimental'), findsOneWidget);
@@ -107,7 +115,11 @@ void main() {
     await tester.enterText(find.byType(TextField), '¿Hola?');
     await tester.tap(find.text('Enviar'));
     await tester.pumpAndSettle();
-    expect(find.text('Hola mundo'), findsOneWidget);
+    expect(find.text('Hola mundo'), findsNothing);
+    expect(
+      find.textContaining('No tengo información verificada'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('sin origen de descarga pide escanear el pase', (tester) async {
@@ -136,7 +148,11 @@ void main() {
     await tester.enterText(find.byType(TextField), 'x');
     await tester.tap(find.text('Enviar'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('No se pudo responder'), findsOneWidget);
+    expect(find.textContaining('No se pudo responder'), findsNothing);
+    expect(
+      find.textContaining('No tengo información verificada'),
+      findsOneWidget,
+    );
     expect(find.text('Enviar'), findsOneWidget);
   });
 
@@ -171,16 +187,69 @@ void main() {
       });
     }
 
-    test('sin ficha usa el modelo', () async {
-      final controller = await ready();
+    test('sin fragmentos se abstiene y no usa el modelo', () async {
+      final engine = FakeEngine(installed: true);
+      final controller = ChatController(engine);
+      await controller.start();
       await controller.ask('¿cómo se hace una arepa?', cards: cards);
-      expect(controller.reply, isNull);
+      expect(controller.reply?.tipo, TipoRespuesta.sinInformacion);
+      expect(controller.answer, isEmpty);
+      expect(engine.lastPrompt, isNull);
+    });
+
+    test('con fragmentos el prompt contiene documentos y consulta', () async {
+      final engine = FakeEngine(installed: true);
+      final controller = ChatController(engine);
+      await controller.start();
+      await controller.ask(
+        '¿cómo se hace una arepa?',
+        cards: cards,
+        fragments: const [
+          Fragment(
+            id: 'arepa',
+            text: 'No hay información sobre arepas.',
+            source: 'Guía',
+            date: null,
+            score: 1,
+            path: 'Cultura > Comida > Arepas',
+            title: 'Arepas',
+          ),
+        ],
+      );
+      expect(engine.lastPrompt, contains('No hay información sobre arepas.'));
+      expect(engine.lastPrompt, contains('¿cómo se hace una arepa?'));
       expect(controller.answer, 'Hola mundo');
+    });
+
+    test('si el modelo se abstiene no muestra fuentes ni la marca', () async {
+      final engine = FakeEngine(installed: true)
+        ..salida = ['SIN_', 'RESPUESTA.\nFuente: Guía'];
+      final controller = ChatController(engine);
+      await controller.start();
+      final mostrado = <String>[];
+      controller.addListener(
+        () => mostrado.add(controller.turnos.last.generado),
+      );
+      await controller.ask(
+        '¿cómo se hace una arepa?',
+        fragments: const [
+          Fragment(id: 'x', text: 'Frailejón.', source: 'Guía', date: null, score: 1),
+        ],
+      );
+      expect(controller.reply?.tipo, TipoRespuesta.sinInformacion);
+      expect(controller.reply?.fuentes, isEmpty);
+      expect(controller.turnos.last.respuesta, controller.reply);
+      expect(controller.answer, isEmpty);
+      expect(mostrado, everyElement(isEmpty));
     });
 
     test('en modo ahorro no usa el modelo', () async {
       final controller = await ready();
-      await controller.ask('¿cómo se hace una arepa?', cards: cards, batterySaver: true);
+      await controller.ask(
+        '¿cómo se hace una arepa?',
+        cards: cards,
+        batterySaver: true,
+      );
       expect(controller.reply?.tipo, TipoRespuesta.sinInformacion);
       expect(controller.answer, isEmpty);
     });

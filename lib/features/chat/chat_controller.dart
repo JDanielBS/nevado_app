@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../core/ai/llm_engine.dart';
+import '../../core/ai/retriever.dart';
 import '../../core/assistant/responder.dart';
 import '../../core/content/card.dart';
 
@@ -19,6 +20,9 @@ class Turno {
   /// El modelo no pudo responder.
   bool fallo = false;
 }
+
+/// Lo que el prompt pide responder cuando los documentos no alcanzan.
+const marcaSinRespuesta = 'SIN_RESPUESTA';
 
 enum ChatPhase {
   checking,
@@ -42,8 +46,10 @@ class ChatController extends ChangeNotifier {
   /// Mensaje para el usuario: motivo de incompatibilidad o último fallo.
   String? error;
   int progress = 0;
+
   /// Texto generado por el modelo.
   String answer = '';
+  List<Fragment> usedFragments = const [];
 
   /// Respuesta de las reglas o de las fichas. Cuando existe, el modelo no interviene.
   Respuesta? reply;
@@ -163,49 +169,81 @@ class ChatController extends ChangeNotifier {
     }
   }
 
+  /// Agrega un mensaje de la propia app a la conversación.
+  void informar(String pregunta, String texto) {
+    turnos.add(Turno(pregunta)..generado = texto);
+    notifyListeners();
+  }
+
   /// Descarta la respuesta en pantalla y la que se esté generando.
   void clear() {
     if (reply == null && answer.isEmpty && !answering) return;
     _discarded++;
     reply = null;
     answer = '';
+    usedFragments = const [];
     notifyListeners();
   }
 
-  /// Orden de decisión: reglas de seguridad, fichas y, solo si no hay nada, el modelo.
+  /// Orden de decisión: reglas de seguridad, fichas y, solo con fragmentos, el modelo.
   ///
   /// Con [batterySaver] activo el modelo no se usa.
   Future<void> ask(
     String question, {
     List<Ficha> cards = const [],
+    List<Fragment> fragments = const [],
     bool batterySaver = false,
   }) async {
     final text = question.trim();
     if (answering || text.isEmpty) return;
     final local = responderPregunta(text, cards);
     answer = '';
+    usedFragments = const [];
     error = phase == ChatPhase.ready ? null : error;
     final turno = Turno(text);
     turnos.add(turno);
-    if (local.tipo != TipoRespuesta.sinInformacion ||
+    // Las reglas de seguridad mandan; con fragmentos, el modelo redacta sobre ellos.
+    if (local.tipo == TipoRespuesta.emergencia ||
+        local.tipo == TipoRespuesta.limite ||
         phase != ChatPhase.ready ||
-        batterySaver) {
+        batterySaver ||
+        fragments.isEmpty) {
       reply = local;
       turno.respuesta = local;
       notifyListeners();
       return;
     }
     reply = null;
+    usedFragments = fragments;
     answering = true;
     notifyListeners();
     final generation = _discarded;
     try {
-      final prompt = 'Responde en español, en máximo 3 frases.\n\n$text';
+      final prompt = _ragPrompt(text, fragments);
+      final reloj = Stopwatch()..start();
       await for (final part in engine.generate(prompt)) {
         if (generation != _discarded) break;
+        if (answer.isEmpty) debugPrint('RAG primera palabra ms=${reloj.elapsedMilliseconds} prompt=${prompt.length}');
         answer += part;
-        turno.generado = answer;
+        // Mientras pueda ser la marca de abstención, no se muestra.
+        final inicio = answer.trimLeft();
+        final esMarca = marcaSinRespuesta.startsWith(inicio) || inicio.contains(marcaSinRespuesta);
+        turno.generado = esMarca ? '' : answer;
         notifyListeners();
+      }
+      if (generation == _discarded && answer.contains(marcaSinRespuesta)) {
+        // Abstención: mensaje fijo de la app, sin fuentes.
+        answer = '';
+        usedFragments = const [];
+        turno.generado = '';
+        reply = turno.respuesta = const Respuesta(TipoRespuesta.sinInformacion, mensajeSinInformacion, []);
+        debugPrint('RAG total ms=${reloj.elapsedMilliseconds} abstención');
+      } else if (generation == _discarded) {
+        // La cita la pone la app a partir de lo recuperado, no el modelo.
+        final fuentes = {for (final f in fragments.take(2)) _fuenteCorta(f.source)};
+        answer = '${answer.split(RegExp(r'\n?\s*Fuente:')).first.trim()}\n\nFuente: ${fuentes.join('; ')}';
+        turno.generado = answer;
+        debugPrint('RAG total ms=${reloj.elapsedMilliseconds} respuesta=$answer');
       }
     } catch (e) {
       debugPrint('Asistente: $e');
@@ -215,5 +253,27 @@ class ChatController extends ChangeNotifier {
       answering = false;
       notifyListeners();
     }
+  }
+
+  /// Plantilla de `prompt_sistema.md`; la de respaldo solo se usa en pruebas.
+  String plantilla =
+      'Responde en español, en máximo 4 frases. Usa solo los documentos. '
+      'Si no responden la pregunta, responde solo $marcaSinRespuesta. No inventes datos.\n\n'
+      'DOCUMENTOS DE CONSULTA\n{documentos}\n\nCONSULTA\n{consulta}';
+
+  static String _fuenteCorta(String fuente) =>
+      fuente.replaceAll(RegExp(r', https?://\S+?(?=,|;|$)'), '');
+
+  String _ragPrompt(String question, List<Fragment> fragments) {
+    final documentos = StringBuffer();
+    for (final f in fragments) {
+      final doc = '${f.path}\n${f.text}\nFuente: ${_fuenteCorta(f.source)}\n\n';
+      // ponytail: tope por caracteres para caber en 2048 tokens; contar tokens si se recorta de más.
+      if (documentos.isNotEmpty && documentos.length + doc.length > 3500) break;
+      documentos.write(doc);
+    }
+    return plantilla
+        .replaceFirst('{documentos}', documentos.toString().trim())
+        .replaceFirst('{consulta}', question);
   }
 }
