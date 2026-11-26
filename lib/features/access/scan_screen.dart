@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
-import '../../app/app_page.dart';
 import '../../core/access/access_controller.dart';
 import '../../core/ui/palette.dart';
 
@@ -59,8 +58,8 @@ class _ScanScreenState extends State<ScanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AppPage(
-      title: 'Escanear pase',
+    return Scaffold(
+      appBar: AppBar(title: const Text('Escanear pase')),
       body: ListView(
         padding: const EdgeInsets.all(Espacio.m),
         children: [
@@ -80,7 +79,7 @@ class _ScanScreenState extends State<ScanScreen> {
             ),
           if (_error != null) ...[
             const SizedBox(height: Espacio.m),
-            Text(_error!, style: const TextStyle(color: Colores.emergencia, fontSize: 16)),
+            Text(_error!, style: const TextStyle(color: Colores.aviso, fontSize: 16)),
           ],
           const SizedBox(height: Espacio.m),
           TextField(

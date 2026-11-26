@@ -23,7 +23,7 @@ Future<void> main() async {
   access.addListener(() {
     if (!access.activo) chatDeLaApp.clear();
   });
-  // No se espera: la app abre de inmediato y Emergencias queda disponible mientras se comprueba.
+  // No se espera: la app abre de inmediato y la sección Seguridad queda disponible mientras se comprueba.
   unawaited(access.iniciar());
   runApp(NevadoApp(settings: Ajustes()..iniciar(), access: access, content: content, model: chatDeLaApp));
 }

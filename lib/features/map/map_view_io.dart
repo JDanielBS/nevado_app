@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show Factory;
+import 'package:flutter/gestures.dart' show EagerGestureRecognizer, OneSequenceGestureRecognizer;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:webview_flutter/webview_flutter.dart';
@@ -44,10 +46,13 @@ abstract final class ServidorMapa {
 }
 
 class MapView extends StatefulWidget {
-  const MapView({super.key, required this.flat});
+  const MapView({super.key, required this.flat, this.compact = false});
 
   /// Abre el mapa sin relieve (por ejemplo en modo ahorro).
   final bool flat;
+
+  /// Muestra solo el terreno: el mapa incrustado en la ruta no necesita controles ni nombres.
+  final bool compact;
 
   @override
   State<MapView> createState() => _MapViewState();
@@ -75,7 +80,11 @@ class _MapViewState extends State<MapView> {
   Future<void> _abrir() async {
     try {
       final base = await ServidorMapa.direccion();
-      final direccion = base.replace(queryParameters: {'app': '1', if (widget.flat) 'plano': '1'});
+      final direccion = base.replace(queryParameters: {
+        'app': '1',
+        if (widget.flat) 'plano': '1',
+        if (widget.compact) 'mini': '1',
+      });
       await _controlador.setJavaScriptMode(JavaScriptMode.unrestricted);
       await _controlador.setBackgroundColor(const Color(0xFFE7ECE9));
       await _controlador.setNavigationDelegate(NavigationDelegate(
@@ -94,11 +103,15 @@ class _MapViewState extends State<MapView> {
   @override
   Widget build(BuildContext context) {
     if (_error != null || !_disponible) {
-      return Center(child: Padding(padding: const EdgeInsets.all(Espacio.l), child: Text(_error!)));
+      return Center(child: Padding(padding: const EdgeInsets.all(Espacio.l), child: Text(_error!, textAlign: TextAlign.center)));
     }
     return Stack(
       children: [
-        WebViewWidget(controller: _controlador),
+        // El mapa toma los gestos dentro de su marco aunque esté dentro de una lista desplazable.
+        WebViewWidget(
+          controller: _controlador,
+          gestureRecognizers: {Factory<OneSequenceGestureRecognizer>(EagerGestureRecognizer.new)},
+        ),
         if (_cargando) const Center(child: CircularProgressIndicator()),
       ],
     );

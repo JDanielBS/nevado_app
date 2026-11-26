@@ -73,6 +73,12 @@ flutter:
   assets:
     # recursos:inicio
     - assets/content/
+    - assets/imagenes/
+    - assets/imagenes/01_brisas/
+    - assets/imagenes/02_aguacerales/
+    - assets/imagenes/03_arenales/
+    - assets/imagenes/04_valle_lunar/
+    - assets/imagenes/05_valle_de_las_tumbas/
     - assets/map/salida/
     - assets/map/salida/elevacion/10/297/
     - assets/map/salida/elevacion/10/298/
@@ -87,6 +93,20 @@ flutter:
     - assets/map/visor/
     - assets/map/visor/lib/
     # recursos:fin
+
+  # Fuentes del diseño (licencia OFL, ver fonts/). Empaquetadas para funcionar sin internet.
+  fonts:
+    - family: AtkinsonHyperlegible
+      fonts:
+        - asset: fonts/AtkinsonHyperlegible-Regular.ttf
+        - asset: fonts/AtkinsonHyperlegible-Bold.ttf
+          weight: 700
+    - family: BarlowCondensed
+      fonts:
+        - asset: fonts/BarlowCondensed-SemiBold.ttf
+          weight: 600
+        - asset: fonts/BarlowCondensed-Bold.ttf
+          weight: 700
 
   # To add assets to your application, add an assets section, like this:
   # assets:

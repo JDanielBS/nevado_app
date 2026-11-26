@@ -8,7 +8,7 @@ import '../features/access/access_scope.dart';
 import '../features/chat/chat_controller.dart';
 import '../features/chat/model_provisioning.dart';
 import '../features/content/content_status.dart';
-import '../features/home/home_screen.dart';
+import 'shell.dart';
 import 'app_scope.dart';
 import 'theme.dart';
 
@@ -56,7 +56,7 @@ class _NevadoAppState extends State<NevadoApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Nevados',
+      title: 'Kumanday',
       theme: appTheme,
       // El ámbito va por encima del navegador para que todas las pantallas lo vean.
       builder: (context, child) => _conAcceso(
@@ -77,7 +77,7 @@ class _NevadoAppState extends State<NevadoApp> {
           ),
         ),
       ),
-      home: const HomeScreen(),
+      home: const KumandayShell(),
     );
   }
 }

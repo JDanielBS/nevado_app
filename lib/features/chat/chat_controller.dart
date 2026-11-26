@@ -4,6 +4,22 @@ import '../../core/ai/llm_engine.dart';
 import '../../core/assistant/responder.dart';
 import '../../core/content/card.dart';
 
+/// Una pregunta del visitante y lo que se le respondió.
+class Turno {
+  Turno(this.pregunta);
+
+  final String pregunta;
+
+  /// Respuesta de las reglas o de las fichas.
+  Respuesta? respuesta;
+
+  /// Texto generado por el modelo, si respondió él.
+  String generado = '';
+
+  /// El modelo no pudo responder.
+  bool fallo = false;
+}
+
 enum ChatPhase {
   checking,
   unsupported,
@@ -31,6 +47,9 @@ class ChatController extends ChangeNotifier {
 
   /// Respuesta de las reglas o de las fichas. Cuando existe, el modelo no interviene.
   Respuesta? reply;
+
+  /// Conversación completa, de la más antigua a la más reciente.
+  final List<Turno> turnos = [];
   bool answering = false;
   Future<void>? _preparation;
   int _discarded = 0;
@@ -166,10 +185,13 @@ class ChatController extends ChangeNotifier {
     final local = responderPregunta(text, cards);
     answer = '';
     error = phase == ChatPhase.ready ? null : error;
+    final turno = Turno(text);
+    turnos.add(turno);
     if (local.tipo != TipoRespuesta.sinInformacion ||
         phase != ChatPhase.ready ||
         batterySaver) {
       reply = local;
+      turno.respuesta = local;
       notifyListeners();
       return;
     }
@@ -182,11 +204,13 @@ class ChatController extends ChangeNotifier {
       await for (final part in engine.generate(prompt)) {
         if (generation != _discarded) break;
         answer += part;
+        turno.generado = answer;
         notifyListeners();
       }
     } catch (e) {
       debugPrint('Asistente: $e');
       error = 'No se pudo responder. Intenta de nuevo.';
+      turno.fallo = true;
     } finally {
       answering = false;
       notifyListeners();

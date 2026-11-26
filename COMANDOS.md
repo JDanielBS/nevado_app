@@ -65,7 +65,7 @@ Mientras corre: `r` recarga, `R` reinicia y `q` cierra.
 
 ## 4. Generar el pase (y entregar el modelo)
 
-Sin un pase vigente solo abren Emergencias y Mi ubicación. Cada pase dura **10 minutos desde que se genera**.
+Sin un pase vigente solo abren las secciones Seguridad y Acerca. Cada pase dura **10 minutos desde que se genera**.
 
 Requisitos: el modelo en `estacion/` (sección 2) y `secrets/pase_privada.key`.
 
