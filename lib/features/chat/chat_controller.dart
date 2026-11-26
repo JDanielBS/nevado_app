@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 
 import '../../core/ai/llm_engine.dart';
+import '../../core/assistant/responder.dart';
+import '../../core/content/card.dart';
 
 enum ChatPhase {
   checking,
@@ -24,7 +26,11 @@ class ChatController extends ChangeNotifier {
   /// Mensaje para el usuario: motivo de incompatibilidad o último fallo.
   String? error;
   int progress = 0;
+  /// Texto generado por el modelo.
   String answer = '';
+
+  /// Respuesta de las reglas o de las fichas. Cuando existe, el modelo no interviene.
+  Respuesta? reply;
   bool answering = false;
   bool _started = false;
 
@@ -92,12 +98,28 @@ class ChatController extends ChangeNotifier {
     }
   }
 
-  Future<void> ask(String question) async {
+  /// Orden de decisión: reglas de seguridad, fichas y, solo si no hay nada, el modelo.
+  ///
+  /// Con [batterySaver] activo el modelo no se usa.
+  Future<void> ask(
+    String question, {
+    List<Ficha> cards = const [],
+    bool batterySaver = false,
+  }) async {
     final text = question.trim();
-    if (phase != ChatPhase.ready || answering || text.isEmpty) return;
-    answering = true;
+    if (answering || text.isEmpty) return;
+    final local = responderPregunta(text, cards);
     answer = '';
-    error = null;
+    error = phase == ChatPhase.ready ? null : error;
+    if (local.tipo != TipoRespuesta.sinInformacion ||
+        phase != ChatPhase.ready ||
+        batterySaver) {
+      reply = local;
+      notifyListeners();
+      return;
+    }
+    reply = null;
+    answering = true;
     notifyListeners();
     try {
       final prompt = 'Responde en español, en máximo 3 frases.\n\n$text';

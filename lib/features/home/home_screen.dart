@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../../app/app_scope.dart';
+import '../../core/content/card_repository.dart';
+import '../../core/ui/widgets.dart';
+import '../cards/cards_screen.dart';
 import '../chat/chat_screen.dart';
 import '../emergency/emergency_screen.dart';
 import '../location/location_screen.dart';
 import '../map/map_screen.dart';
+import 'settings_card.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -13,10 +18,13 @@ class HomeScreen extends StatelessWidget {
     ('Asistente', Icons.chat, ChatScreen()),
     ('Mi ubicación', Icons.my_location, LocationScreen()),
     ('Mapa', Icons.map, MapScreen()),
+    ('Fichas', Icons.menu_book, CardsScreen()),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final scope = AppScope.maybeOf(context);
+    final settings = scope?.settings;
     return Scaffold(
       appBar: AppBar(title: const Text('Nevados')),
       body: SafeArea(
@@ -30,6 +38,13 @@ class HomeScreen extends StatelessWidget {
                 'Esta app orienta y no reemplaza a guías ni a '
                 'Parques Nacionales Naturales.',
               ),
+              if (settings != null) AvisoAhorro(ajustes: settings),
+              if (hayContenidoSinVerificar(scope?.cards ?? const []))
+                const Text(
+                  'El contenido es de demostración y aún no está verificado. '
+                  'No lo uses para tomar decisiones de seguridad.',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
               for (final (label, icon, screen) in _entries)
                 FilledButton.icon(
                   icon: Icon(icon, size: 32),
@@ -38,6 +53,7 @@ class HomeScreen extends StatelessWidget {
                     MaterialPageRoute<void>(builder: (_) => screen),
                   ),
                 ),
+              if (settings != null) SettingsCard(settings: settings),
             ],
           ),
         ),

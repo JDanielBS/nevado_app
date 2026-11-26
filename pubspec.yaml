@@ -37,6 +37,10 @@ dependencies:
   flutter_edge_ai: 2.7.2
   flutter_edge_ai_litertlm: 1.21.3
   crypto: ^3.0.8
+  webview_flutter: ^4.14.1
+  geolocator: ^14.1.2
+  battery_plus: ^7.1.2
+  web: ^1.1.2
 
 dev_dependencies:
   flutter_test:
@@ -59,6 +63,25 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # Lista generada por tool/sync_map_assets.py: no editar a mano.
+  assets:
+    # recursos:inicio
+    - assets/content/
+    - assets/map/salida/
+    - assets/map/salida/elevacion/10/297/
+    - assets/map/salida/elevacion/10/298/
+    - assets/map/salida/elevacion/11/594/
+    - assets/map/salida/elevacion/11/595/
+    - assets/map/salida/elevacion/11/596/
+    - assets/map/salida/elevacion/12/1189/
+    - assets/map/salida/elevacion/12/1190/
+    - assets/map/salida/elevacion/12/1191/
+    - assets/map/salida/elevacion/12/1192/
+    - assets/map/satelite/
+    - assets/map/visor/
+    - assets/map/visor/lib/
+    # recursos:fin
 
   # To add assets to your application, add an assets section, like this:
   # assets:

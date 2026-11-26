@@ -1,6 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Red: descarga del modelo y servidor local del mapa (solo 127.0.0.1). -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Ubicación: solo cuando la persona la pide, en primer plano. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <application
+        android:networkSecurityConfig="@xml/network_security_config"
         android:label="Nevados"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">

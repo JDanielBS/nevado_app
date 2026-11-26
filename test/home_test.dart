@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nevado_app/app/app.dart';
 
-const labels = ['Emergencias', 'Asistente', 'Mi ubicación', 'Mapa'];
+const labels = ['Emergencias', 'Asistente', 'Mi ubicación', 'Mapa', 'Fichas'];
 
 Future<void> openAndReturn(WidgetTester tester, String label) async {
   final button = find.text(label);

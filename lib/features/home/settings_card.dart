@@ -1,0 +1,53 @@
+import 'package:flutter/material.dart';
+
+import '../../core/settings/battery_saver.dart';
+import '../../core/settings/settings.dart';
+import '../../core/ui/palette.dart';
+import '../../core/ui/widgets.dart';
+
+/// Tamaño de texto y modo ahorro de batería.
+class SettingsCard extends StatelessWidget {
+  const SettingsCard({super.key, required this.settings});
+
+  final Ajustes settings;
+
+  @override
+  Widget build(BuildContext context) {
+    return Caja(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const TituloCaja('Ajustes'),
+          const Linea('Tamaño del texto', negrita: true),
+          Wrap(
+            spacing: Espacio.s,
+            runSpacing: Espacio.s,
+            children: [
+              for (final scale in escalasTexto.entries)
+                ChoiceChip(
+                  label: Text(scale.value),
+                  selected: settings.escala == scale.key,
+                  onSelected: (_) => settings.escala = scale.key,
+                ),
+            ],
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Modo ahorro de batería'),
+            subtitle: Text('Batería: ${porcentaje(settings.nivelBateria)}. Se activa solo con 20 % o menos.'),
+            value: settings.ahorroManual,
+            onChanged: (value) => settings.ahorroManual = value,
+          ),
+          if (settings.ahorroActivo) ...const [
+            Linea('Para cuidar la batería:'),
+            Linea('• Baja el brillo de la pantalla.'),
+            Linea('• Activa el modo avión: esta guía no necesita señal.'),
+            Linea('• Pide la ubicación solo cuando la necesites.'),
+            Linea('• El mapa se abre sin relieve 3D.'),
+            Linea('• El asistente responde solo con búsqueda local, sin modelo de IA.'),
+          ],
+        ],
+      ),
+    );
+  }
+}
