@@ -37,8 +37,11 @@ void main() {
   });
 
   group('calcularAhorro', () {
-    ({bool activo, MotivoAhorro? motivo}) calcular({double? nivel = 0.8, bool sistema = false, bool manual = false}) =>
-        calcularAhorro(nivel: nivel, ahorroSistema: sistema, manual: manual);
+    ({bool activo, MotivoAhorro? motivo}) calcular({
+      double? nivel = 0.8,
+      bool sistema = false,
+      bool? preferencia,
+    }) => calcularAhorro(nivel: nivel, ahorroSistema: sistema, preferencia: preferencia);
 
     test('está apagado con batería normal', () {
       expect(calcular(), (activo: false, motivo: null));
@@ -48,7 +51,11 @@ void main() {
       expect(calcular(nivel: 0.21).activo, isFalse);
     });
     test('lo manual tiene prioridad', () {
-      expect(calcular(manual: true, nivel: 0.1).motivo, MotivoAhorro.manual);
+      expect(calcular(preferencia: true, nivel: 0.1).motivo, MotivoAhorro.manual);
+    });
+    test('la persona puede desactivarlo aunque se haya activado solo', () {
+      expect(calcular(preferencia: false, nivel: 0.1), (activo: false, motivo: null));
+      expect(calcular(preferencia: false, sistema: true).activo, isFalse);
     });
     test('respeta el ahorro del sistema', () {
       expect(calcular(sistema: true).motivo, MotivoAhorro.ahorroSistema);

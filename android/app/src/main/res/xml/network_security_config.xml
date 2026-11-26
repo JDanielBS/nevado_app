@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Solo se permite HTTP sin cifrar hacia el propio teléfono, donde la app sirve los archivos del mapa. -->
+<!-- Se permite HTTP sin cifrar para dos usos locales: los archivos del mapa (127.0.0.1) y la descarga del
+     modelo desde el servidor de la estación, cuya dirección cambia según la red. Android no permite limitar
+     la regla a un rango de direcciones. La dirección llega firmada en el pase y el modelo se verifica con
+     SHA-256 antes de cargarlo. -->
 <network-security-config>
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">127.0.0.1</domain>
-    </domain-config>
+    <base-config cleartextTrafficPermitted="true" />
 </network-security-config>

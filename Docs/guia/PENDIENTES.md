@@ -2,7 +2,10 @@
 
 > Copia traída del proyecto previo. Las rutas `app_flutter/` y `docs/` corresponden a esa estructura anterior; en este repositorio ver el `README.md`.
 
-Última actualización: 2026-11-25
+Última actualización: 2026-11-26
+
+## Reto UTON (2026-11-26)
+Las tareas, prioridades y criterios de aceptación están en `Docs/plan-reto.md`.
 
 ## Migración a Flutter (2026-11-25)
 Hecho:
@@ -58,7 +61,7 @@ Falta:
 - [ ] Ajustar la instrucción del modelo para reducir las negativas injustificadas y repetir la comparación antes de decidir.
 - [ ] Ejecutar el spike en el celular: descargar el modelo por wifi, activar modo avión, cargar y responder. Anotar tiempo de carga, tiempo de respuesta y RAM, y compararlo con la PC.
 - [ ] Si el spike funciona: benchmark de 2 o 3 modelos (`ondevice-bench`), conectar el modelo al buscador y a las guardias de seguridad, descarga previa con reanudación y aviso de espacio libre, y prueba en modo avión (`offline-check`).
-- [ ] Definir cómo llega el modelo (1,04 GB) a miles de celulares: descarga por wifi al primer uso, punto de descarga local en la entrada del parque o asset packs de Play Store (no verificado). No puede ir dentro del APK.
+- [ ] Definir cómo se instala el modelo en los teléfonos de los guías (descarga previa por wifi o copia directa). No puede ir dentro del APK.
 - [ ] Decidir el modelo de embeddings para la búsqueda semántica (candidatos: multilingual-e5-small en GGUF, nemotron-3.5-embed-1b).
 - [ ] Prueba temporal usando una API de NVIDIA (propuesta del equipo; falta el ID del modelo de chat y confirmar el plan). Solo para desarrollo: la clave no debe ir en el código final ni en archivos versionados, y la app final no puede depender de internet.
 - [x] Limpieza (2026-11-25): borrados los compilados de `app/` (de 18 GB a 1,8 GB; se regeneran al recompilar) y los instaladores `cmdline.zip` y de Flutter.
