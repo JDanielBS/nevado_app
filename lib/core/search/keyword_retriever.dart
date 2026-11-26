@@ -19,10 +19,13 @@ class KeywordRetriever implements Retriever {
     return [
       for (final match in buscar(query, verified, max: limit))
         Fragment(
+          id: match.ficha.id,
           text: match.ficha.texto,
           source: match.ficha.fuente,
-          date: DateTime.parse(match.ficha.fechaVerificacion!),
+          date: DateTime.tryParse(match.ficha.fechaVerificacion!),
           score: match.puntaje.toDouble(),
+          path: match.ficha.titulo,
+          title: match.ficha.titulo,
         ),
     ];
   }

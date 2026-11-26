@@ -107,3 +107,10 @@ maps/salida/
 
 # Archivos que reparte la estación (modelo y copias del APK)
 /estacion/
+
+
+# Contenido de la guia empaquetado para compilar (uso restringido)
+/assets/conocimiento/**/*.md
+
+# Copia comprimida del contenido (uso restringido)
+/contenido.zip

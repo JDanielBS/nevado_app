@@ -71,14 +71,10 @@ flutter:
 
   # Lista generada por tool/sync_map_assets.py: no editar a mano.
   assets:
+    - assets/conocimiento/
+    - assets/conocimiento/secciones/
     # recursos:inicio
     - assets/content/
-    - assets/imagenes/
-    - assets/imagenes/01_brisas/
-    - assets/imagenes/02_aguacerales/
-    - assets/imagenes/03_arenales/
-    - assets/imagenes/04_valle_lunar/
-    - assets/imagenes/05_valle_de_las_tumbas/
     - assets/map/salida/
     - assets/map/salida/elevacion/10/297/
     - assets/map/salida/elevacion/10/298/
