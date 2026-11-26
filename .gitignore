@@ -98,3 +98,6 @@ maps/salida/
 # Contexto local para agentes (no subir)
 /.agents/
 /AGENTS.md
+
+# Archivos que reparte la estación (modelo y copias del APK)
+/estacion/

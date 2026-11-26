@@ -8,7 +8,8 @@ import '../../core/ai/edge_llm_engine.dart';
 import 'chat_controller.dart';
 import 'reply_view.dart';
 
-final _appController = ChatController(EdgeLlmEngine());
+/// Controlador único de la app: la descarga sigue aunque se salga de la pantalla.
+final chatDeLaApp = ChatController(EdgeLlmEngine());
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key, this.controller});
@@ -21,12 +22,13 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  late final ChatController _chat = widget.controller ?? _appController;
+  late final ChatController _chat = widget.controller ?? chatDeLaApp;
   final _input = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    _chat.enPantalla = true;
     // Después del primer cuadro: start() puede notificar de inmediato.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // En modo ahorro no se carga el modelo.
@@ -47,6 +49,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     _input.dispose();
     // Al salir se recupera la memoria del modelo; vuelve a cargarse al entrar.
+    _chat.enPantalla = false;
     unawaited(_chat.release());
     super.dispose();
   }
@@ -110,7 +113,7 @@ class _ChatScreenState extends State<ChatScreen> {
     ChatPhase.checking => const [Center(child: CircularProgressIndicator())],
     ChatPhase.unsupported => const [],
     ChatPhase.noModel =>
-      _chat.engine.canDownload
+      _chat.canDownload
           ? [
               const Text(
                 'El asistente necesita descargar un modelo de 584 MB. '
@@ -124,8 +127,8 @@ class _ChatScreenState extends State<ChatScreen> {
             ]
           : const [
               Text(
-                'Falta HUGGINGFACE_TOKEN. Compila con '
-                '--dart-define-from-file=.env (ver README).',
+                'El modelo no está instalado. Conéctate a la red de la estación '
+                'y escanea el pase.',
               ),
             ],
     ChatPhase.downloading => [
